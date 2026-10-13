@@ -1,14 +1,39 @@
-import { neon } from "@neondatabase/serverless";
+import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 
-const connectionString = process.env.DATABASE_URL;
+type SqlClient = NeonQueryFunction<false, false>;
 
-if (!connectionString) {
-  throw new Error(
-    "DATABASE_URL belum di-set. Tambahkan koneksi PostgreSQL Neon ke .env.local"
-  );
+let cachedClient: SqlClient | null = null;
+
+function getSql(): SqlClient {
+  if (!cachedClient) {
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      throw new Error(
+        "DATABASE_URL belum di-set. Tambahkan koneksi PostgreSQL Neon ke .env.local"
+      );
+    }
+    cachedClient = neon(connectionString);
+  }
+  return cachedClient;
 }
 
-export const sql = neon(connectionString);
+/**
+ * Klien Neon lazy: error (bila DATABASE_URL absen) baru dilempar saat
+ * query dieksekusi di runtime, bukan saat modul di-import (build time).
+ * Meneruskan pemanggilan template-tag sekaligus properti (query/transaction/unsafe).
+ */
+export const sql = new Proxy(() => {}, {
+  apply(_target, _thisArg, args: unknown[]) {
+    const client = getSql() as (...a: unknown[]) => unknown;
+    return client(...args);
+  },
+  get(_target, prop) {
+    const value = (getSql() as unknown as Record<PropertyKey, unknown>)[prop];
+    return typeof value === "function"
+      ? (value as (...a: unknown[]) => unknown).bind(getSql())
+      : value;
+  },
+}) as unknown as SqlClient;
 
 export type UserRole = "admin" | "user";
 
