@@ -1,0 +1,198 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { UserButton } from "@clerk/nextjs";
+import {
+  ArrowLeft,
+  Crown,
+  ExternalLink,
+  Pencil,
+  Plus,
+  LayoutGrid,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
+import {
+  getLandingPagesByUserId,
+  getUserRole,
+  upsertUser,
+  type LandingPage,
+} from "@/lib/db";
+import { DeleteLandingPageButton } from "./DeleteButton";
+import { UpgradeProButton } from "@/components/billing/UpgradeProModal";
+
+// Dashboard bersifat privat: render per-request (blocking), bukan prerender statis.
+export const instant = false;
+
+function StatusBadge({ isPro }: { isPro: boolean }) {
+  if (isPro) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+        <Crown className="h-3 w-3" />
+        Pro
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+      Free
+    </span>
+  );
+}
+
+function LandingPageCard({ page }: { page: LandingPage }) {
+  return (
+    <article className="flex flex-col rounded-2xl border border-zinc-200 bg-white p-5 transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="truncate text-base font-semibold tracking-tight">
+          {page.title}
+        </h2>
+        <StatusBadge isPro={page.is_pro} />
+      </div>
+
+      <Link
+        href={`/p/${page.slug}`}
+        className="mt-1 inline-flex items-center gap-1 truncate text-sm text-zinc-500 hover:text-zinc-900 hover:underline dark:text-zinc-400 dark:hover:text-zinc-50"
+      >
+        /p/{page.slug}
+        <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+      </Link>
+
+      <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-500">
+        Template: {page.template_type} · Dibuat{" "}
+        {new Date(page.created_at).toLocaleDateString("id-ID", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })}
+      </p>
+
+      <div className="mt-4 flex items-center gap-2 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+        <Link
+          href={`/dashboard/builder/${page.slug}`}
+          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+          Edit
+        </Link>
+        <Link
+          href={`/p/${page.slug}`}
+          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-zinc-200 px-3 py-2 text-xs font-medium transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          Lihat Live
+        </Link>
+        <DeleteLandingPageButton slug={page.slug} title={page.title} />
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <Link
+          href={`/dashboard/guests/${page.slug}`}
+          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-zinc-200 px-3 py-2 text-xs font-medium transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+        >
+          <Users className="h-3.5 w-3.5" />
+          Tamu & RSVP
+        </Link>
+        {!page.is_pro && <UpgradeProButton slug={page.slug} />}
+      </div>
+    </article>
+  );
+}
+
+export default async function DashboardPage() {
+  const { userId } = await auth();
+  if (!userId) redirect("/sign-in");
+
+  // Pastikan baris user ada (FK landing_pages.user_id -> users.clerk_id)
+  const user = await currentUser();
+  const email = user?.emailAddresses[0]?.emailAddress ?? "";
+  if (email) {
+    await upsertUser({ id: userId, clerk_id: userId, email });
+  }
+
+  const pages = await getLandingPagesByUserId(userId);
+  const role = await getUserRole(userId);
+  const isUserAdmin = role === "admin";
+
+  return (
+    <div className="flex min-h-screen flex-col bg-zinc-50 font-sans text-zinc-900 dark:bg-black dark:text-zinc-50">
+      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+              aria-label="Kembali ke beranda"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+            <h1 className="text-base font-semibold tracking-tight">
+              Dashboard
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            {isUserAdmin && (
+              <Link
+                href="/admin"
+                className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-4 py-2 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-900/60"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                Admin Panel
+              </Link>
+            )}
+            <UserButton />
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight">
+              Landing Page Saya
+            </h2>
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+              {pages.length === 0
+                ? "Belum ada landing page. Buat yang pertama!"
+                : `${pages.length} landing page`}
+            </p>
+          </div>
+          <Link
+            href="/dashboard/builder/new"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          >
+            <Plus className="h-4 w-4" />
+            Buat Landing Page Baru
+          </Link>
+        </div>
+
+        {pages.length === 0 ? (
+          <div className="mt-10 flex flex-col items-center rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-16 text-center dark:border-zinc-700 dark:bg-zinc-950">
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800">
+              <LayoutGrid className="h-6 w-6 text-zinc-500" />
+            </span>
+            <h3 className="mt-4 text-base font-semibold">
+              Mulai dari halaman kosong
+            </h3>
+            <p className="mt-1 max-w-sm text-sm text-zinc-600 dark:text-zinc-400">
+              Buat landing page pertamamu dalam hitungan menit dan bagikan
+              tautannya ke siapa pun.
+            </p>
+            <Link
+              href="/dashboard/builder/new"
+              className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            >
+              <Plus className="h-4 w-4" />
+              Buat Landing Page Baru
+            </Link>
+          </div>
+        ) : (
+          <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {pages.map((page) => (
+              <LandingPageCard key={page.id} page={page} />
+            ))}
+          </section>
+        )}
+      </main>
+    </div>
+  );
+}

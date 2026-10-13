@@ -33,6 +33,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# cloudflare dev vars (berisi secret - JANGAN di-commit)
+.dev.vars
+
 # vercel
 .vercel
 

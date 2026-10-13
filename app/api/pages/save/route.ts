@@ -1,0 +1,196 @@
+import { NextResponse } from "next/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import {
+  createLandingPage,
+  getLandingPageByUserAndSlug,
+  isUniqueViolation,
+  updateLandingPage,
+  upsertUser,
+} from "@/lib/db";
+import { checkSaveEntitlements } from "@/lib/entitlements";
+import { toInvitationContent } from "@/lib/invitation";
+
+const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+// Template yang dikenal renderer (termasuk nilai lawas untuk kompatibilitas).
+const TEMPLATE_ALLOWLIST = new Set([
+  "elegant",
+  "rustic",
+  "floral",
+  "minimalist",
+  "minimal",
+  "modern",
+]);
+
+const MAX_CONTENT_BYTES = 512 * 1024; // 512KB
+const MAX_GALLERY_IMAGES = 12;
+
+// Key content_json yang berisi URL/file — wajib http(s) bila diisi,
+// untuk mencegah stored javascript:/data: URL yang dieksekusi saat diklik.
+const URL_KEYS = [
+  "backsoundUrl",
+  "mapsUrl",
+  "akadMapsUrl",
+  "receptionMapsUrl",
+  "heroImage",
+  "imageUrl",
+  "coverImageUrl",
+];
+const URL_ARRAY_KEYS = ["galleryImages", "galleryUrls"];
+
+interface SaveBody {
+  slug?: unknown;
+  title?: unknown;
+  template_type?: unknown;
+  content_json?: unknown;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/** Kembalikan pesan error bila ada URL berbahaya di content, null bila aman. */
+function validateContentUrls(content: Record<string, unknown>): string | null {
+  for (const key of URL_KEYS) {
+    const v = content[key];
+    if (typeof v === "string" && v.trim() !== "" && !isHttpUrl(v.trim())) {
+      return `Field '${key}' harus berupa URL http(s) yang valid`;
+    }
+  }
+  for (const key of URL_ARRAY_KEYS) {
+    const v = content[key];
+    if (v === undefined) continue;
+    if (
+      !Array.isArray(v) ||
+      v.some((u) => typeof u !== "string" || (u.trim() !== "" && !isHttpUrl(u.trim())))
+    ) {
+      return `Field '${key}' harus berupa array URL http(s) yang valid`;
+    }
+  }
+  const gallery = content.galleryImages ?? content.galleryUrls;
+  if (Array.isArray(gallery) && gallery.length > MAX_GALLERY_IMAGES) {
+    return `Maksimal ${MAX_GALLERY_IMAGES} foto galeri`;
+  }
+  return null;
+}
+
+export async function POST(req: Request) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let body: SaveBody;
+  try {
+    body = (await req.json()) as SaveBody;
+  } catch {
+    return NextResponse.json({ error: "Body harus JSON" }, { status: 400 });
+  }
+
+  const slug = typeof body.slug === "string" ? body.slug.trim() : "";
+  const title = typeof body.title === "string" ? body.title.trim() : "";
+  const templateType =
+    typeof body.template_type === "string" && body.template_type.trim() !== ""
+      ? body.template_type.trim()
+      : "minimal";
+  const contentJson = isRecord(body.content_json) ? body.content_json : null;
+
+  if (!SLUG_RE.test(slug) || slug.length > 60) {
+    return NextResponse.json(
+      {
+        error:
+          "Slug tidak valid (huruf kecil, angka, strip; maks 60 karakter)",
+      },
+      { status: 400 }
+    );
+  }
+  if (!title || title.length > 120) {
+    return NextResponse.json(
+      { error: "Judul wajib diisi (maks 120 karakter)" },
+      { status: 400 }
+    );
+  }
+  if (!contentJson) {
+    return NextResponse.json(
+      { error: "content_json wajib berupa object" },
+      { status: 400 }
+    );
+  }
+  if (!TEMPLATE_ALLOWLIST.has(templateType)) {
+    return NextResponse.json(
+      { error: "template_type tidak dikenal" },
+      { status: 400 }
+    );
+  }
+  if (JSON.stringify(contentJson).length > MAX_CONTENT_BYTES) {
+    return NextResponse.json(
+      { error: "Konten terlalu besar (maks 512KB)" },
+      { status: 400 }
+    );
+  }
+  const urlError = validateContentUrls(contentJson);
+  if (urlError) {
+    return NextResponse.json({ error: urlError }, { status: 400 });
+  }
+
+  // Pastikan baris user ada (FK landing_pages.user_id -> users.clerk_id)
+  const user = await currentUser();
+  const email = user?.emailAddresses[0]?.emailAddress;
+  if (email) {
+    await upsertUser({ id: userId, clerk_id: userId, email });
+  }
+
+  const existing = await getLandingPageByUserAndSlug(userId, slug);
+
+  // Entitlement: halaman baru selalu Free; update mengikuti status saat ini.
+  const normalized = toInvitationContent(contentJson);
+  const entitlementError = checkSaveEntitlements({
+    isPro: existing?.is_pro ?? false,
+    templateType,
+    galleryCount: normalized.galleryImages.length,
+    hasBacksound: normalized.backsoundUrl.trim() !== "",
+  });
+  if (entitlementError) {
+    return NextResponse.json({ error: entitlementError }, { status: 403 });
+  }
+
+  if (existing) {
+    const updated = await updateLandingPage(userId, slug, {
+      title,
+      template_type: templateType,
+      contentJson,
+    });
+    return NextResponse.json({ ok: true, created: false, page: updated });
+  }
+
+  try {
+    const created = await createLandingPage({
+      user_id: userId,
+      title,
+      slug,
+      template_type: templateType,
+      content_json: contentJson,
+    });
+    return NextResponse.json(
+      { ok: true, created: true, page: created },
+      { status: 201 }
+    );
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return NextResponse.json(
+        { error: "Slug sudah dipakai, pilih slug lain" },
+        { status: 409 }
+      );
+    }
+    throw error;
+  }
+}
