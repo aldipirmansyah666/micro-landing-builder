@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "next build",
+    "build": "npx opennextjs-cloudflare build",
     "dev": "next dev",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "node scripts/patch-opennext-load-manifest.mjs",
     "preview": "node scripts/patch-opennext-load-manifest.mjs && opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "node scripts/patch-opennext-load-manifest.mjs && opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "deploy": "npx opennextjs-cloudflare build && npx wrangler deploy --name micro-landing-builder",
     "upload": "node scripts/patch-opennext-load-manifest.mjs && opennextjs-cloudflare build && opennextjs-cloudflare upload",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
