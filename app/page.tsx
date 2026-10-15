@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Suspense } from "react";
 import { Show, UserButton } from "@clerk/nextjs";
 import { ArrowRight, Check } from "lucide-react";
@@ -55,15 +56,25 @@ export default function Home() {
     <div className="flex min-h-screen flex-col bg-white font-sans text-zinc-900 dark:bg-black dark:text-zinc-50">
       {/* Navbar */}
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-5">
-        <Link href="/" className="text-base font-semibold tracking-tight">
-          💍 NikahYuk
+        <Link href="/" className="flex flex-col gap-1" aria-label="NikahYuk — beranda">
+          <Image
+            src="/logo-nikahyuk.png"
+            alt="NikahYuk"
+            width={200}
+            height={100}
+            priority
+            className="h-10 w-auto dark:rounded-lg dark:bg-white dark:px-2 dark:py-1"
+          />
+          <span className="text-[11px] font-medium tracking-wide text-zinc-500 dark:text-zinc-400">
+            Undangan Online, Lebih Mudah
+          </span>
         </Link>
         <nav className="flex items-center gap-3">
           <Suspense
             fallback={
               <Link
                 href="/dashboard"
-                className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white dark:bg-zinc-50 dark:text-zinc-900"
+                className="rounded-full bg-[#F4735C] px-4 py-2 text-sm font-medium text-white hover:bg-[#E15F47]"
               >
                 Buat Undangan Gratis
               </Link>
@@ -78,7 +89,7 @@ export default function Home() {
               </Link>
               <Link
                 href="/dashboard"
-                className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                className="rounded-full bg-[#F4735C] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#E15F47]"
               >
                 Buat Undangan Gratis
               </Link>
@@ -86,7 +97,7 @@ export default function Home() {
             <Show when="signed-in">
               <Link
                 href="/dashboard"
-                className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                className="rounded-full bg-[#F4735C] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#E15F47]"
               >
                 Buat Undangan Gratis
               </Link>
@@ -98,7 +109,7 @@ export default function Home() {
 
       {/* Hero */}
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center px-6 pt-16 pb-20 text-center sm:pt-24">
-        <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
+        <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#F4735C]/30 bg-[#F4735C]/10 px-3 py-1 text-xs font-medium text-[#C24E38] dark:border-[#F4735C]/40 dark:bg-[#F4735C]/10 dark:text-[#F49A86]">
           ✨ Platform Undangan Digital Pernikahan #1
         </span>
         <h1 className="max-w-3xl text-4xl leading-tight font-semibold tracking-tight sm:text-6xl">
@@ -114,7 +125,7 @@ export default function Home() {
             fallback={
               <Link
                 href="/dashboard"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-zinc-900 px-7 text-sm font-medium text-white dark:bg-zinc-50 dark:text-zinc-900"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#F4735C] px-7 text-sm font-medium text-white shadow-lg shadow-[#F4735C]/30 hover:bg-[#E15F47]"
               >
                 Mulai Buat Undangan
                 <ArrowRight className="h-4 w-4" />
@@ -124,7 +135,7 @@ export default function Home() {
             <Show when="signed-out">
               <Link
                 href="/sign-up"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-zinc-900 px-7 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#F4735C] px-7 text-sm font-medium text-white shadow-lg shadow-[#F4735C]/30 transition-colors hover:bg-[#E15F47]"
               >
                 Mulai Buat Undangan
                 <ArrowRight className="h-4 w-4" />
@@ -139,7 +150,7 @@ export default function Home() {
             <Show when="signed-in">
               <Link
                 href="/dashboard"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-zinc-900 px-7 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#F4735C] px-7 text-sm font-medium text-white shadow-lg shadow-[#F4735C]/30 transition-colors hover:bg-[#E15F47]"
               >
                 Mulai Buat Undangan
                 <ArrowRight className="h-4 w-4" />
@@ -150,7 +161,7 @@ export default function Home() {
 
         {/* Showcase template */}
         <section className="mt-20 w-full text-center">
-          <span className="inline-flex items-center rounded-full bg-zinc-900 px-4 py-1.5 text-xs font-semibold text-white dark:bg-zinc-50 dark:text-zinc-900">
+          <span className="inline-flex items-center rounded-full bg-[#1B2A4A] px-4 py-1.5 text-xs font-semibold text-white">
             18+ Pilihan Template
           </span>
           <h2 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -233,8 +244,22 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-zinc-200 py-6 text-center text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-500">
-        © 2026 NikahYuk. All rights reserved.
+      <footer className="border-t border-zinc-200 py-8 dark:border-zinc-800">
+        <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-2 px-6 text-center">
+          <Image
+            src="/logo-nikahyuk.png"
+            alt="NikahYuk"
+            width={160}
+            height={80}
+            className="h-8 w-auto dark:rounded-lg dark:bg-white dark:px-2 dark:py-1"
+          />
+          <p className="text-[11px] font-medium tracking-wide text-zinc-500 dark:text-zinc-400">
+            Undangan Online, Lebih Mudah
+          </p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-500">
+            © 2026 NikahYuk. All rights reserved.
+          </p>
+        </div>
       </footer>
     </div>
   );
