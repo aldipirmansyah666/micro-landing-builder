@@ -14,8 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Micro Landing Builder",
-  description: "Bangun micro landing page dalam hitungan menit.",
+  title: "NikahYuk — Buat Undangan Digital Pernikahan Mewah & Elegan",
+  description:
+    "Platform pembuat undangan digital pernikahan otomatis dengan 18+ pilihan template premium, musik latar, RSVP real-time, galeri foto, dan lokasi Google Maps.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
