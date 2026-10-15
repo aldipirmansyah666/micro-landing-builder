@@ -6,7 +6,8 @@ import { ArrowLeft, Crown, ExternalLink, ShieldCheck } from "lucide-react";
 import { getAllLandingPages, isAdmin } from "@/lib/db";
 import { ToggleProButton } from "./ToggleProButton";
 
-// Halaman privat admin: render per-request (blocking), bukan prerender statis.
+// Halaman privat admin (auth + query Neon per-request): boleh blocking,
+// opt-out dari validasi instant navigation (Next.js 16 + cacheComponents).
 export const instant = false;
 
 export default async function AdminPage() {

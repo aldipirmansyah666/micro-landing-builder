@@ -1,12 +1,16 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
+  ChevronDown,
+  Crown,
   ExternalLink,
+  Eye,
+  EyeOff,
   ImagePlus,
   Loader2,
   Minus,
@@ -15,6 +19,7 @@ import {
   RotateCcw,
   Save,
   Trash2,
+  X,
 } from "lucide-react";
 import type { LandingPage } from "@/lib/db";
 import {
@@ -25,13 +30,15 @@ import {
 import {
   resolveTemplate,
   slugify,
-  TEMPLATE_OPTIONS,
   toInvitationContent,
   type GiftAccount,
   type InvitationContent,
 } from "@/lib/invitation";
 import { InvitationTemplate } from "@/components/templates/InvitationTemplate";
+import { CompactTemplateSelector } from "@/components/templates/TemplateCatalog";
+import { SafeImg } from "@/components/templates/shared";
 import { UpgradeProButton } from "@/components/billing/UpgradeProModal";
+import { TEMPLATE_REGISTRY, templateLabel } from "@/lib/templates";
 
 const inputClass =
   "w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-400";
@@ -54,20 +61,31 @@ function Field({
   );
 }
 
-function Section({
+function Accordion({
   title,
+  defaultOpen = false,
   children,
 }: {
   title: string;
+  defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <fieldset className="rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
-      <legend className="px-2 text-xs font-semibold tracking-wider text-zinc-500 uppercase">
+    <div className="overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-2 bg-zinc-50 px-4 py-3.5 text-left text-sm font-semibold tracking-tight transition-colors hover:bg-zinc-100 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+      >
         {title}
-      </legend>
-      <div className="space-y-4">{children}</div>
-    </fieldset>
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && <div className="space-y-4 p-4">{children}</div>}
+    </div>
   );
 }
 
@@ -148,6 +166,117 @@ function EventFields({
   );
 }
 
+export function TemplatePreviewDropdown({
+  value,
+  isPro,
+  onSelect,
+}: {
+  value: string;
+  isPro: boolean;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 rounded-2xl border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950">
+      <span aria-hidden className="shrink-0 text-base">
+        🎨
+      </span>
+      <span className="shrink-0 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+        Preview Template:
+      </span>
+      <span className="relative min-w-0 flex-1">
+        <select
+          value={value}
+          onChange={(e) => onSelect(e.target.value)}
+          aria-label="Pilih template untuk preview"
+          className="w-full appearance-none truncate bg-transparent pr-6 text-xs font-semibold outline-none"
+        >
+          {TEMPLATE_REGISTRY.map((t) => {
+            const needsPro = !isPro && t.id !== FREE_TEMPLATE_ID;
+            return (
+              <option key={t.id} value={t.id}>
+                {t.name}
+                {needsPro ? " • PRO" : ""}
+              </option>
+            );
+          })}
+        </select>
+        <ChevronDown className="pointer-events-none absolute top-1/2 right-0 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500" />
+      </span>
+    </label>
+  );
+}
+
+function ProTemplateInfoModal({
+  templateId,
+  savedSlug,
+  onClose,
+}: {
+  templateId: string;
+  savedSlug: string | null;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Template khusus PRO"
+    >
+      <div
+        className="w-full max-w-sm rounded-3xl bg-white p-6 text-zinc-900 shadow-2xl dark:bg-zinc-950 dark:text-zinc-50"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between">
+          <h3 className="inline-flex items-center gap-2 text-base font-semibold tracking-tight">
+            <Crown className="h-5 w-5 text-amber-500" />
+            {templateLabel(templateId)}
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Tutup info PRO"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <p className="mt-2 text-sm opacity-70">
+          Template ini khusus PRO. Kamu tetap bisa{" "}
+          <span className="font-medium">preview secara real-time</span> dengan
+          semua data form yang sedang diisi — tanpa terkunci.
+        </p>
+        <p className="mt-2 text-sm opacity-70">
+          Upgrade ke PRO untuk menyimpan & mempublish undangan dengan template
+          ini. Paket Free tersimpan dengan template Aruna.
+        </p>
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-10 flex-1 rounded-full border border-zinc-200 text-sm font-medium transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          >
+            Tetap Preview
+          </button>
+          {savedSlug ? (
+            <div className="flex-1 [&>button]:w-full">
+              <UpgradeProButton slug={savedSlug} />
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-10 flex-1 rounded-full bg-amber-400 text-sm font-semibold text-amber-950 transition-colors hover:bg-amber-300"
+            >
+              Mengerti
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function BuilderClient({
   mode,
   initial,
@@ -165,7 +294,7 @@ export function BuilderClient({
   const [slug, setSlug] = useState(initial?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(mode === "edit");
   const [templateType, setTemplateType] = useState<string>(
-    resolveTemplate(initial?.template_type ?? "elegant")
+    resolveTemplate(initial?.template_type ?? FREE_TEMPLATE_ID)
   );
   const [content, setContent] = useState<InvitationContent>(seed);
 
@@ -176,10 +305,21 @@ export function BuilderClient({
   );
   const [previewGuest, setPreviewGuest] = useState("");
   const [previewKey, setPreviewKey] = useState(0);
+  // Preview langsung menampilkan isi (cover terbuka) agar foto cover
+  // langsung kelihatan; matikan untuk memeriksa tampilan cover tertutup.
+  const [previewOpened, setPreviewOpened] = useState(true);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
+
+  // Toast sukses menghilang otomatis setelah 3 detik; error tetap
+  // sampai ditutup manual agar tidak kelewat dibaca.
+  useEffect(() => {
+    if (message?.type !== "success") return;
+    const t = setTimeout(() => setMessage(null), 3000);
+    return () => clearTimeout(t);
+  }, [message]);
 
   const coverRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
@@ -194,13 +334,13 @@ export function BuilderClient({
     if (!slugTouched) setSlug(slugify(value));
   }
 
-  async function uploadFile(file: File): Promise<string> {
+  async function uploadFile(file: File): Promise<{ url: string; warning?: string }> {
     const form = new FormData();
     form.append("file", file);
     const res = await fetch("/api/upload", { method: "POST", body: form });
-    const data = (await res.json()) as { ok?: boolean; url?: string; error?: string };
+    const data = (await res.json()) as { ok?: boolean; url?: string; warning?: string; error?: string };
     if (!res.ok || !data.url) throw new Error(data.error ?? "Gagal mengunggah file");
-    return data.url;
+    return { url: data.url, warning: data.warning };
   }
 
   async function runUpload(kind: string, fn: () => Promise<void>) {
@@ -227,8 +367,27 @@ export function BuilderClient({
 
   const isPro = plan === "pro";
   const galleryLimit = maxGallery(plan);
-  // Paket Free terkunci ke template dasar di semua titik (form, simpan, preview).
+  // Real-Time Multi-Template Preview:
+  // - `templateType` adalah draft pilihan pengguna (boleh PRO walau akun Free)
+  //   dan HANYA mengubah template — state `content` tidak disentuh sehingga
+  //   data form (nama, foto cover, lokasi, gallery) tetap utuh & reaktif.
+  // - `effectiveTemplateType` adalah yang benar-benar disimpan ke server
+  //   (Free selalu Aruna). Preview memakai draft agar PRO bisa dicoba
+  //   tanpa terkunci; banner/modal PRO tampil dengan halus.
   const effectiveTemplateType = isPro ? templateType : FREE_TEMPLATE_ID;
+  const previewTemplateType = resolveTemplate(templateType);
+  const isPreviewProTemplate =
+    !isPro && previewTemplateType !== FREE_TEMPLATE_ID;
+  const [proInfoTemplate, setProInfoTemplate] = useState<string | null>(null);
+
+  function handleTemplateSelect(id: string) {
+    const normalized = resolveTemplate(id);
+    // Instan: hanya set template, jangan reset `content`/form lainnya.
+    setTemplateType(normalized);
+    if (!isPro && normalized !== FREE_TEMPLATE_ID) {
+      setProInfoTemplate(normalized);
+    }
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -247,12 +406,17 @@ export function BuilderClient({
       const data = (await res.json()) as {
         ok?: boolean;
         created?: boolean;
-        page?: { slug: string };
+        page?: { slug: string; template_type?: string };
         error?: string;
       };
       if (!res.ok) throw new Error(data.error ?? "Gagal menyimpan perubahan");
       const finalSlug = data.page?.slug ?? slug.trim();
       setSavedSlug(finalSlug);
+      // Samakan state dengan yang benar-benar tersimpan (kanonis dari
+      // server) agar preview tidak stale dan pasti sama dengan live view.
+      if (data.page?.template_type) {
+        setTemplateType(resolveTemplate(data.page.template_type));
+      }
       setMessage({
         type: "success",
         text: data.created
@@ -319,22 +483,6 @@ export function BuilderClient({
             </button>
           </div>
         </div>
-        {message && (
-          <div
-            className={`flex items-center gap-2 border-t px-6 py-2.5 text-sm ${
-              message.type === "success"
-                ? "border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-300"
-                : "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
-            }`}
-          >
-            {message.type === "success" ? (
-              <CheckCircle2 className="h-4 w-4 shrink-0" />
-            ) : (
-              <AlertCircle className="h-4 w-4 shrink-0" />
-            )}
-            {message.text}
-          </div>
-        )}
       </header>
 
       <main className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-6 py-8 lg:grid-cols-2">
@@ -342,7 +490,21 @@ export function BuilderClient({
         <section className="h-fit space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
           <h2 className="text-sm font-semibold tracking-tight">Editor Undangan</h2>
 
-          <Section title="Informasi Dasar">
+          <Field label="Template">
+            <CompactTemplateSelector
+              value={templateType}
+              onChange={handleTemplateSelect}
+              isPro={isPro}
+            />
+            {!isPro && templateType !== FREE_TEMPLATE_ID && (
+              <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                Preview memakai {templateLabel(templateType)} (PRO). Yang
+                tersimpan untuk paket Free tetap Aruna.
+              </p>
+            )}
+          </Field>
+
+          <Accordion title="📌 Informasi Dasar & Slug" defaultOpen>
             <Field label="Judul Undangan">
               <input
                 value={title}
@@ -368,30 +530,6 @@ export function BuilderClient({
                 />
               </div>
             </Field>
-            <Field label="Tipe Template">
-              <select
-                value={effectiveTemplateType}
-                onChange={(e) => setTemplateType(e.target.value)}
-                className={inputClass}
-              >
-                {TEMPLATE_OPTIONS.map((t) => (
-                  <option
-                    key={t.value}
-                    value={t.value}
-                    disabled={!isPro && t.value !== FREE_TEMPLATE_ID}
-                  >
-                    {t.label}
-                    {!isPro && t.value !== FREE_TEMPLATE_ID ? " 🔒 PRO" : ""}
-                  </option>
-                ))}
-              </select>
-              {!isPro && (
-                <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
-                  Paket Free hanya template Modern Minimalist. Upgrade ke PRO
-                  untuk membuka semua template.
-                </p>
-              )}
-            </Field>
             <Field label="Kata Pengantar / Quote">
               <textarea
                 value={content.quote}
@@ -401,9 +539,10 @@ export function BuilderClient({
                 className={`${inputClass} resize-none`}
               />
             </Field>
-          </Section>
+          </Accordion>
 
-          <Section title="Mempelai Pria">
+          <Accordion title="💍 Profil Mempelai Pria & Wanita">
+            <p className="text-sm font-medium">Mempelai Pria</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Nama Lengkap">
                 <input
@@ -422,7 +561,7 @@ export function BuilderClient({
                 />
               </Field>
             </div>
-            <Field label="Nama Orang Tua">
+            <Field label="Nama Orang Tua (Pria)">
               <input
                 value={content.groomParents}
                 onChange={(e) => patch({ groomParents: e.target.value })}
@@ -430,9 +569,7 @@ export function BuilderClient({
                 className={inputClass}
               />
             </Field>
-          </Section>
-
-          <Section title="Mempelai Wanita">
+            <p className="pt-2 text-sm font-medium">Mempelai Wanita</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Nama Lengkap">
                 <input
@@ -451,7 +588,7 @@ export function BuilderClient({
                 />
               </Field>
             </div>
-            <Field label="Nama Orang Tua">
+            <Field label="Nama Orang Tua (Wanita)">
               <input
                 value={content.brideParents}
                 onChange={(e) => patch({ brideParents: e.target.value })}
@@ -459,13 +596,10 @@ export function BuilderClient({
                 className={inputClass}
               />
             </Field>
-          </Section>
+          </Accordion>
 
-          <Section title="Akad Nikah">
+          <Accordion title="📅 Detail Akad & Resepsi">
             <EventFields prefix="akad" title="Detail Akad" content={content} onChange={patch} />
-          </Section>
-
-          <Section title="Resepsi">
             <EventFields
               prefix="reception"
               title="Detail Resepsi"
@@ -486,9 +620,9 @@ export function BuilderClient({
             >
               Samakan dengan detail Akad
             </button>
-          </Section>
+          </Accordion>
 
-          <Section title="Media">
+          <Accordion title="🖼️ Media">
             <Field label="Foto Cover">
               <div className="flex items-center gap-2">
                 <input
@@ -500,9 +634,12 @@ export function BuilderClient({
                     const f = e.target.files?.[0];
                     if (coverRef.current) coverRef.current.value = "";
                     if (f)
-                      void runUpload("cover", async () =>
-                        patch({ heroImage: await uploadFile(f) })
-                      );
+                      void runUpload("cover", async () => {
+                        const r = await uploadFile(f);
+                        patch({ heroImage: r.url });
+                        if (r.warning)
+                          setMessage({ type: "error", text: r.warning });
+                      });
                   }}
                 />
                 <button
@@ -553,9 +690,12 @@ export function BuilderClient({
                     const f = e.target.files?.[0];
                     if (audioRef.current) audioRef.current.value = "";
                     if (f)
-                      void runUpload("audio", async () =>
-                        patch({ backsoundUrl: await uploadFile(f) })
-                      );
+                      void runUpload("audio", async () => {
+                        const r = await uploadFile(f);
+                        patch({ backsoundUrl: r.url });
+                        if (r.warning)
+                          setMessage({ type: "error", text: r.warning });
+                      });
                   }}
                 />
                 <button
@@ -595,28 +735,32 @@ export function BuilderClient({
                 onChange={(e) => {
                   const files = [...(e.target.files ?? [])];
                   if (galleryRef.current) galleryRef.current.value = "";
-                  if (files.length > 0)
-                    void runUpload("gallery", async () => {
-                      const room = Math.max(
-                        galleryLimit - content.galleryImages.length,
-                        0
-                      );
-                      if (room <= 0) {
-                        throw new Error(
-                          `Galeri penuh (maks ${galleryLimit} foto untuk paket ${isPro ? "PRO" : "Free"})`
+                    if (files.length > 0)
+                      void runUpload("gallery", async () => {
+                        const room = Math.max(
+                          galleryLimit - content.galleryImages.length,
+                          0
                         );
-                      }
-                      const urls = await Promise.all(
-                        files.slice(0, room).map(uploadFile)
-                      );
-                      setContent((c) => ({
-                        ...c,
-                        galleryImages: [...c.galleryImages, ...urls].slice(
-                          0,
-                          galleryLimit
-                        ),
-                      }));
-                    });
+                        if (room <= 0) {
+                          throw new Error(
+                            `Galeri penuh (maks ${galleryLimit} foto untuk paket ${isPro ? "PRO" : "Free"})`
+                          );
+                        }
+                        const results = await Promise.all(
+                          files.slice(0, room).map(uploadFile)
+                        );
+                        const urls = results.map((r) => r.url);
+                        const warning = results.find((r) => r.warning)?.warning;
+                        setContent((c) => ({
+                          ...c,
+                          galleryImages: [...c.galleryImages, ...urls].slice(
+                            0,
+                            galleryLimit
+                          ),
+                        }));
+                        if (warning)
+                          setMessage({ type: "error", text: warning });
+                      });
                 }}
               />
               <button
@@ -636,10 +780,10 @@ export function BuilderClient({
                 <div className="mt-3 grid grid-cols-4 gap-2">
                   {content.galleryImages.map((url) => (
                     <div key={url} className="group relative">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                      <SafeImg
                         src={url}
                         alt="Galeri"
+                        fallbackLabel="Gagal dimuat"
                         className="aspect-square w-full rounded-xl object-cover"
                       />
                       <button
@@ -660,9 +804,7 @@ export function BuilderClient({
                 </div>
               )}
             </Field>
-          </Section>
-
-          <Section title="Amplop Digital">
+            <p className="pt-2 text-sm font-medium">Amplop Digital / Rekening</p>
             {content.accounts.map((a, i) => (
               <div
                 key={i}
@@ -726,7 +868,7 @@ export function BuilderClient({
               <Plus className="h-4 w-4" />
               Tambah Rekening
             </button>
-          </Section>
+          </Accordion>
         </section>
 
         {/* Live preview kanan: frame smartphone */}
@@ -744,21 +886,68 @@ export function BuilderClient({
                 type="button"
                 onClick={() => setPreviewKey((k) => k + 1)}
                 title="Putar ulang cover"
+                aria-label="Putar ulang cover"
                 className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 transition-colors hover:bg-white dark:border-zinc-700 dark:hover:bg-zinc-900"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
               </button>
+              <button
+                type="button"
+                onClick={() => setPreviewOpened((v) => !v)}
+                title={previewOpened ? "Lihat cover tertutup" : "Lewati cover (lihat isi)"}
+                aria-label={previewOpened ? "Lihat cover tertutup" : "Lewati cover (lihat isi)"}
+                aria-pressed={previewOpened}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 transition-colors hover:bg-white dark:border-zinc-700 dark:hover:bg-zinc-900"
+              >
+                {previewOpened ? (
+                  <EyeOff className="h-3.5 w-3.5" />
+                ) : (
+                  <Eye className="h-3.5 w-3.5" />
+                )}
+              </button>
             </div>
+          </div>
+          {/* Dropdown pemilih template preview — ringkas, tidak terpotong.
+              Mengubah `templateType` secara instan; `content` tidak di-reset
+              sehingga seluruh data form langsung re-render reaktif. */}
+          <div className="mb-3">
+            <TemplatePreviewDropdown
+              value={previewTemplateType}
+              isPro={isPro}
+              onSelect={handleTemplateSelect}
+            />
+            {isPreviewProTemplate ? (
+              <button
+                type="button"
+                onClick={() => setProInfoTemplate(previewTemplateType)}
+                className="mt-2 flex w-full items-center justify-between gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-left text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  <Crown className="h-3.5 w-3.5 shrink-0" />
+                  Preview {templateLabel(previewTemplateType)} (PRO) — data
+                  form tetap tampil. Klik untuk info upgrade.
+                </span>
+                <span className="shrink-0 rounded-full bg-amber-400 px-2 py-0.5 font-semibold text-amber-950">
+                  PRO
+                </span>
+              </button>
+            ) : (
+              <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                Preview: {templateLabel(previewTemplateType)} — semua data form
+                ter-render otomatis di sini.
+              </p>
+            )}
           </div>
           <div className="mx-auto w-full max-w-[380px] overflow-hidden rounded-[2.5rem] border-[10px] border-zinc-900 bg-zinc-900 shadow-2xl dark:border-zinc-700">
             <div className="mx-auto mt-2 h-5 w-28 rounded-full bg-zinc-900 dark:bg-zinc-700" />
             <div className="h-[720px] overflow-y-auto rounded-b-[1.8rem] bg-white dark:bg-black">
               <InvitationTemplate
-                key={previewKey}
+                key={`${previewKey}-${previewOpened}`}
                 title={title || "Undangan Digital"}
-                templateType={effectiveTemplateType}
+                templateType={previewTemplateType}
                 content={content}
                 guestName={previewGuest}
+                defaultOpened={previewOpened}
                 rsvpSlot={
                   <div className="rounded-2xl border border-dashed border-zinc-300 p-4 text-center text-xs text-zinc-500 dark:border-zinc-700">
                     Form Ucapan & RSVP akan tampil di sini pada halaman live.
@@ -767,8 +956,42 @@ export function BuilderClient({
               />
             </div>
           </div>
+          {proInfoTemplate && !isPro && resolveTemplate(proInfoTemplate) !== FREE_TEMPLATE_ID && (
+            <ProTemplateInfoModal
+              templateId={proInfoTemplate}
+              savedSlug={savedSlug}
+              onClose={() => setProInfoTemplate(null)}
+            />
+          )}
         </section>
       </main>
+
+      {/* Floating toast pojok kanan bawah (sukses auto-hilang 3 dtk) */}
+      {message && (
+        <div
+          role={message.type === "error" ? "alert" : "status"}
+          className={`fixed right-4 bottom-4 z-50 flex max-w-sm items-start gap-2 rounded-2xl border p-4 text-sm shadow-2xl backdrop-blur ${
+            message.type === "success"
+              ? "border-green-200 bg-green-50/95 text-green-800 dark:border-green-900 dark:bg-green-950/95 dark:text-green-300"
+              : "border-red-200 bg-red-50/95 text-red-800 dark:border-red-900 dark:bg-red-950/95 dark:text-red-300"
+          }`}
+        >
+          {message.type === "success" ? (
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+          ) : (
+            <AlertCircle className="h-4 w-4 shrink-0" />
+          )}
+          <p className="flex-1">{message.text}</p>
+          <button
+            type="button"
+            onClick={() => setMessage(null)}
+            aria-label="Tutup notifikasi"
+            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-black/10 dark:hover:bg-white/10"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

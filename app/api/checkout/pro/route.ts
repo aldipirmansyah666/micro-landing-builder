@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import {
   createPendingOrder,
-  getLandingPageByUserAndSlug,
+  getLandingPageBasicByUserAndSlug,
+  isAdmin,
 } from "@/lib/db";
+import { hasProAccess } from "@/lib/entitlements";
 
 type Provider = "midtrans" | "xendit";
 
@@ -21,7 +23,8 @@ function detectProvider(): Provider | null {
 }
 
 function basicAuth(secret: string): string {
-  return `Basic ${Buffer.from(`${secret}:`).toString("base64")}`;
+  // Web-standard base64 (Worker-compatible, tanpa Node Buffer).
+  return `Basic ${btoa(`${secret}:`)}`;
 }
 
 /** Info harga & provider untuk modal upgrade (tidak butuh login). */
@@ -129,7 +132,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Slug wajib diisi" }, { status: 400 });
   }
 
-  const page = await getLandingPageByUserAndSlug(userId, slug);
+  const page = await getLandingPageBasicByUserAndSlug(userId, slug);
   if (!page) {
     return NextResponse.json(
       { error: "Landing page tidak ditemukan" },
@@ -137,6 +140,11 @@ export async function POST(req: Request) {
     );
   }
   if (page.is_pro) {
+    return NextResponse.json({ ok: true, alreadyPro: true, slug });
+  }
+
+  // Admin & development/lokal sudah punya akses Pro penuh — tanpa pembayaran.
+  if (hasProAccess({ isPro: false, isAdmin: await isAdmin(userId) })) {
     return NextResponse.json({ ok: true, alreadyPro: true, slug });
   }
 

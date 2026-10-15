@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { markGuestOpened } from "@/lib/db";
 
+const SLUG_RE = /^[a-z0-9-]{1,60}$/;
+
 /** Beacon publik: tandai undangan telah dibuka oleh nama tamu (?to=). */
 export async function POST(req: Request) {
   let slug = "";
@@ -15,6 +17,16 @@ export async function POST(req: Request) {
   if (!slug || !name) {
     return NextResponse.json({ error: "slug dan name wajib diisi" }, { status: 400 });
   }
-  await markGuestOpened(slug, name);
-  return NextResponse.json({ ok: true });
+  if (!SLUG_RE.test(slug)) {
+    return NextResponse.json({ error: "slug tidak valid" }, { status: 400 });
+  }
+  try {
+    await markGuestOpened(slug, name);
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json(
+      { error: "Gagal mencatat status dibuka" },
+      { status: 500 }
+    );
+  }
 }

@@ -11,8 +11,8 @@ import { InvitationTemplate } from "@/components/templates/InvitationTemplate";
 import { GuestOpenedBeacon } from "@/components/invitation/GuestOpenedBeacon";
 import { RsvpSection } from "@/components/invitation/RsvpSection";
 
-// Halaman publik dinamis per slug: render per-request (blocking),
-// karena datanya diambil dari Neon saat runtime.
+// Halaman publik dinamis per slug (query Neon per-request): boleh blocking,
+// opt-out dari validasi instant navigation (Next.js 16 + cacheComponents).
 export const instant = false;
 
 export async function generateMetadata({

@@ -6,13 +6,42 @@ import {
 
 export type Plan = "free" | "pro";
 
-/** Satu-satunya template gratis (dasar). */
-export const FREE_TEMPLATE_ID: TemplateId = "minimalist";
+/** Satu-satunya template gratis (dasar): Aruna, default paling aman. */
+export const FREE_TEMPLATE_ID: TemplateId = "aruna";
 export const FREE_MAX_GALLERY = 5;
 export const PRO_MAX_GALLERY = 12;
 
 export function planOf(isPro: boolean): Plan {
   return isPro ? "pro" : "free";
+}
+
+/**
+ * True saat berjalan di development/lokal (`next dev`). Di production
+ * (termasuk Cloudflare Worker hasil build) selalu false — akses Pro di
+ * sana hanya lewat status Pro halaman atau role admin.
+ */
+export function isDevEnvironment(): boolean {
+  return process.env.NODE_ENV === "development";
+}
+
+/**
+ * Satu-satunya penentu akses Pro di aplikasi (bypass terpusat):
+ * - halaman sudah Pro, ATAU
+ * - user adalah admin, ATAU
+ * - berjalan di development/lokal.
+ *
+ * Pakai helper ini di setiap gate fitur Pro (builder plan, validasi save,
+ * tombol upgrade, checkout) agar admin/dev selalu dapat akses penuh tanpa
+ * paywall. Render publik (/p/[slug]) TIDAK memakai ini karena tidak ada
+ * konteks user — ia tetap mengikuti status Pro halaman itu sendiri.
+ */
+export function hasProAccess(input: {
+  isPro: boolean;
+  isAdmin?: boolean;
+}): boolean {
+  if (input.isPro) return true;
+  if (input.isAdmin === true) return true;
+  return isDevEnvironment();
 }
 
 export function maxGallery(plan: Plan): number {

@@ -12,6 +12,8 @@ import {
 import { GuestManager } from "./GuestManager";
 import { WishManager } from "./WishManager";
 
+// Halaman privat (auth + query Neon per-request): boleh blocking,
+// opt-out dari validasi instant navigation (Next.js 16 + cacheComponents).
 export const instant = false;
 
 export default async function GuestsPage({

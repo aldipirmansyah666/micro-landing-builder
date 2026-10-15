@@ -20,14 +20,17 @@ import {
   CopyRekeningButton,
   CoverOverlay,
   MusicToggle,
+  OrnateDivider,
+  Reveal,
   SafeImg,
+  SectionHeading,
   useCountdown,
 } from "./shared";
 import type { TemplateProps } from "./types";
 
 /** Elegant Gold: mewah, latar gelap, aksen emas, font serif. */
-export function ElegantTemplate({ title, content, guestName, rsvpSlot }: TemplateProps) {
-  const [opened, setOpened] = useState(false);
+export function ElegantTemplate({ title, content, guestName, rsvpSlot, defaultOpened }: TemplateProps) {
+  const [opened, setOpened] = useState(defaultOpened ?? false);
   const [muted, setMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const target = useMemo(() => eventTimestamp(content), [content]);
@@ -35,7 +38,8 @@ export function ElegantTemplate({ title, content, guestName, rsvpSlot }: Templat
 
   const guest = guestName?.trim() || "Tamu Undangan";
   const names = coupleNames(content);
-  const card = "border-amber-200/20 bg-stone-900/80";
+  const card =
+    "border-amber-200/20 bg-stone-900/80 shadow-xl shadow-black/40 backdrop-blur-sm";
 
   return (
     <div className="relative min-h-full bg-stone-950 font-serif text-amber-50 antialiased">
@@ -44,6 +48,7 @@ export function ElegantTemplate({ title, content, guestName, rsvpSlot }: Templat
       )}
       {!opened && (
         <CoverOverlay
+          key={content.heroImage}
           overlayClass="bg-stone-950/95 text-amber-50"
           titleFont="font-serif"
           image={content.heroImage}
@@ -71,8 +76,9 @@ export function ElegantTemplate({ title, content, guestName, rsvpSlot }: Templat
       )}
 
       <div className="px-5 py-10">
+        <Reveal>
         <div className="text-center">
-          <Crown className="mx-auto h-6 w-6 text-amber-300" />
+          <Crown className="animate-float-slow mx-auto h-6 w-6 text-amber-300" />
           <p className="mt-2 text-[11px] tracking-[0.3em] uppercase text-amber-200/70">
             Assalamu&apos;alaikum Wr. Wb.
           </p>
@@ -82,10 +88,12 @@ export function ElegantTemplate({ title, content, guestName, rsvpSlot }: Templat
             </p>
           )}
         </div>
+        </Reveal>
 
+        <Reveal delayMs={80}>
         <div className="mt-8 text-center">
-          <h2 className="text-4xl font-semibold text-amber-100">{names}</h2>
-          <div className="mx-auto mt-3 h-px w-24 bg-amber-300/50" />
+          <h2 className="text-shimmer-gold text-4xl font-semibold">{names}</h2>
+          <OrnateDivider lineClass="bg-amber-300/50" ornament="❦" className="mx-auto mt-4 max-w-48 text-amber-300" />
           {[
             { nick: content.groomNickname || content.groomFullName, full: content.groomFullName, parents: content.groomParents, label: "Putra dari" },
             { nick: content.brideNickname || content.brideFullName, full: content.brideFullName, parents: content.brideParents, label: "Putri dari" },
@@ -104,11 +112,15 @@ export function ElegantTemplate({ title, content, guestName, rsvpSlot }: Templat
               )
           )}
         </div>
+        </Reveal>
 
+        <Reveal delayMs={120}>
         <div className="mt-8 text-center">
-          <p className="flex items-center justify-center gap-2 text-[11px] tracking-[0.25em] uppercase text-amber-200/70">
-            <Calendar className="h-3.5 w-3.5" /> Menghitung Hari
-          </p>
+          <SectionHeading
+            kicker="Menghitung Hari"
+            icon={<Calendar className="h-3.5 w-3.5" />}
+            className="text-amber-200/70"
+          />
           {countdown && !countdown.passed ? (
             <div className="mt-4 grid grid-cols-4 gap-2">
               {[
@@ -129,13 +141,19 @@ export function ElegantTemplate({ title, content, guestName, rsvpSlot }: Templat
             </p>
           )}
         </div>
+        </Reveal>
 
+        <Reveal>
+        <div className="relative mt-8 rounded-2xl border border-amber-200/30 p-1.5">
         <SafeImg
+          key={content.heroImage}
           src={content.heroImage}
           alt={title}
           fallbackLabel={title}
-          className="mt-8 aspect-[4/5] w-full rounded-2xl border border-amber-200/20 object-cover"
+          className="aspect-[4/5] w-full rounded-xl border border-amber-200/20 object-cover"
         />
+        </div>
+        </Reveal>
 
         {[
           { name: "Akad Nikah", date: content.akadDate, time: content.akadTime, venue: content.akadVenue, maps: content.akadMapsUrl },
@@ -143,41 +161,55 @@ export function ElegantTemplate({ title, content, guestName, rsvpSlot }: Templat
         ]
           .filter((e) => e.date || e.time || e.venue)
           .map((e) => (
-            <div key={e.name} className={`mt-4 rounded-2xl border px-5 py-6 text-center ${card}`}>
-              <p className="flex items-center justify-center gap-2 text-[11px] tracking-[0.25em] uppercase text-amber-200/70">
-                <MapPin className="h-3.5 w-3.5" /> {e.name}
-              </p>
+            <Reveal key={e.name}>
+            <div className={`mt-4 rounded-2xl border px-5 py-6 text-center ${card}`}>
+              <SectionHeading
+                kicker={e.name}
+                icon={<MapPin className="h-3.5 w-3.5" />}
+                className="text-amber-200/70"
+              />
+              <OrnateDivider lineClass="bg-amber-300/30" ornament="✦" className="mx-auto mt-3 max-w-36 text-amber-300/70" />
               <p className="mt-3 text-lg">{formatDateLong(e.date)}</p>
               {e.time && <p className="text-sm text-amber-100/70">Pukul {e.time} WIB</p>}
               {e.venue && <p className="mt-2 text-sm text-amber-100/80">{e.venue}</p>}
               {e.maps && (
                 <a href={e.maps} target="_blank" rel="noopener noreferrer"
-                  className="mt-4 inline-flex h-10 items-center gap-2 rounded-full bg-amber-300 px-5 text-sm font-medium text-stone-950 transition-transform hover:scale-105">
+                  className="mt-4 inline-flex h-10 items-center gap-2 rounded-full bg-amber-300 px-5 text-sm font-medium text-stone-950 shadow-lg shadow-amber-300/20 transition-all hover:scale-105 hover:shadow-amber-300/40">
                   <Navigation className="h-4 w-4" /> Buka Maps
                 </a>
               )}
             </div>
+            </Reveal>
           ))}
 
         {content.galleryImages.length > 0 && (
+          <Reveal>
           <div className="mt-8">
-            <p className="flex items-center justify-center gap-2 text-[11px] tracking-[0.25em] uppercase text-amber-200/70">
-              <Images className="h-3.5 w-3.5" /> Galeri Momen
-            </p>
+            <SectionHeading
+              kicker="Galeri Momen"
+              icon={<Images className="h-3.5 w-3.5" />}
+              className="text-amber-200/70"
+            />
+            <OrnateDivider lineClass="bg-amber-300/30" ornament="✦" className="mx-auto mt-3 max-w-36 text-amber-300/70" />
             <div className="mt-4 grid grid-cols-2 gap-2">
               {content.galleryImages.map((url) => (
                 <SafeImg key={url} src={url} alt="Galeri"
-                  className="aspect-square w-full rounded-2xl border border-amber-200/20 object-cover" />
+                  className="aspect-square w-full rounded-2xl border border-amber-200/20 object-cover transition-transform duration-500 hover:scale-[1.02]" />
               ))}
             </div>
           </div>
+          </Reveal>
         )}
 
         {content.accounts.length > 0 && (
+          <Reveal>
           <div className="mt-8">
-            <p className="flex items-center justify-center gap-2 text-[11px] tracking-[0.25em] uppercase text-amber-200/70">
-              <Gift className="h-3.5 w-3.5" /> Amplop Digital
-            </p>
+            <SectionHeading
+              kicker="Amplop Digital"
+              icon={<Gift className="h-3.5 w-3.5" />}
+              className="text-amber-200/70"
+            />
+            <OrnateDivider lineClass="bg-amber-300/30" ornament="✦" className="mx-auto mt-3 max-w-36 text-amber-300/70" />
             <div className="mt-4 grid gap-3">
               {content.accounts.map((a, i) => (
                 <div key={`${a.bank}-${a.number}-${i}`} className={`rounded-2xl border px-5 py-4 text-center ${card}`}>
@@ -193,16 +225,22 @@ export function ElegantTemplate({ title, content, guestName, rsvpSlot }: Templat
               ))}
             </div>
           </div>
+          </Reveal>
         )}
 
+        <Reveal>
         <div className="mt-8">
-          <p className="flex items-center justify-center gap-2 text-[11px] tracking-[0.25em] uppercase text-amber-200/70">
-            <MessageCircleHeart className="h-3.5 w-3.5" /> Ucapan & RSVP
-          </p>
+          <SectionHeading
+            kicker="Ucapan & RSVP"
+            icon={<MessageCircleHeart className="h-3.5 w-3.5" />}
+            className="text-amber-200/70"
+          />
+          <OrnateDivider lineClass="bg-amber-300/30" ornament="✦" className="mx-auto mt-3 max-w-36 text-amber-300/70" />
           <div className="mt-4 [&_input]:bg-stone-900 [&_select]:bg-stone-900 [&_textarea]:bg-stone-900">
             {rsvpSlot}
           </div>
         </div>
+        </Reveal>
 
         <p className="mt-8 flex items-center justify-center gap-1.5 text-center text-xs text-amber-100/50">
           <Heart className="h-3.5 w-3.5" /> {names}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpRight,
   Calendar,
@@ -14,22 +14,30 @@ import {
   CopyRekeningButton,
   CoverOverlay,
   MusicToggle,
+  Reveal,
   SafeImg,
   useCountdown,
 } from "./shared";
 import type { TemplateProps } from "./types";
 
 /** Modern Minimalist: clean hitam-putih, sans-serif, presisi. */
-export function MinimalistTemplate({ title, content, guestName, rsvpSlot }: TemplateProps) {
-  const [opened, setOpened] = useState(false);
+export function MinimalistTemplate({ title, content, guestName, rsvpSlot, defaultOpened }: TemplateProps) {
+  const [opened, setOpened] = useState(defaultOpened ?? false);
   const [muted, setMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const target = useMemo(() => eventTimestamp(content), [content]);
   const countdown = useCountdown(target, opened);
-
+  const [isMounted, setIsMounted] = useState(false);
+  // Countdown dihitung dari Date.now() saat render sehingga SSR & client
+  // selalu berbeda — tunda render-nya sampai setelah mount agar tidak
+  // hydration mismatch.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- pola isMounted standar untuk gate render client-only
+    setIsMounted(true);
+  }, []);
   const guest = guestName?.trim() || "Tamu Undangan";
   const names = coupleNames(content);
-  const card = "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950";
+  const card = "border-zinc-200 bg-white shadow-lg shadow-zinc-200/60 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-black/40";
 
   return (
     <div className="relative min-h-full bg-white font-sans text-zinc-900 antialiased dark:bg-black dark:text-zinc-50">
@@ -38,6 +46,7 @@ export function MinimalistTemplate({ title, content, guestName, rsvpSlot }: Temp
       )}
       {!opened && (
         <CoverOverlay
+          key={content.heroImage}
           overlayClass="bg-zinc-950 text-zinc-50"
           titleFont="font-sans"
           image={content.heroImage}
@@ -65,26 +74,33 @@ export function MinimalistTemplate({ title, content, guestName, rsvpSlot }: Temp
       )}
 
       <div className="px-6 py-12">
+        <Reveal>
         <div className="text-left">
           <p className="text-[11px] font-medium tracking-[0.3em] uppercase text-zinc-400">
             The Wedding Of
           </p>
           <h2 className="mt-2 text-4xl font-semibold tracking-tight">{names}</h2>
+          <div className="mt-4 h-px w-16 bg-zinc-900 dark:bg-zinc-100" />
           {content.quote && (
             <p className="mt-4 border-l-2 border-zinc-900 pl-4 text-sm leading-7 text-zinc-600 dark:border-zinc-100 dark:text-zinc-400">
               {content.quote}
             </p>
           )}
         </div>
+        </Reveal>
 
+        <Reveal delayMs={80}>
         <SafeImg
+          key={content.heroImage}
           src={content.heroImage}
           alt={title}
           fallbackLabel={title}
-          className="mt-8 aspect-[4/5] w-full rounded-none object-cover"
+          className="mt-8 aspect-[4/5] w-full rounded-2xl object-cover shadow-xl shadow-zinc-200/70 dark:shadow-black/50"
         />
+        </Reveal>
 
-        <div className="mt-10 grid grid-cols-2 gap-px bg-zinc-200 dark:bg-zinc-800">
+        <Reveal>
+        <div className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-zinc-200 shadow-sm dark:bg-zinc-800">
           {[
             { nick: content.groomNickname || content.groomFullName, full: content.groomFullName, parents: content.groomParents },
             { nick: content.brideNickname || content.brideFullName, full: content.brideFullName, parents: content.brideParents },
@@ -101,31 +117,35 @@ export function MinimalistTemplate({ title, content, guestName, rsvpSlot }: Temp
               )
           )}
         </div>
+        </Reveal>
 
+        <Reveal>
         <div className="mt-10">
           <p className="flex items-center gap-2 text-[11px] font-medium tracking-[0.3em] uppercase text-zinc-400">
             <Calendar className="h-3.5 w-3.5" /> Countdown
           </p>
-          {countdown && !countdown.passed ? (
-            <div className="mt-4 flex items-baseline gap-5">
-              {[
-                { v: countdown.days, l: "Days" },
-                { v: countdown.hours, l: "Hrs" },
-                { v: countdown.mins, l: "Min" },
-                { v: countdown.secs, l: "Sec" },
-              ].map((u) => (
-                <div key={u.l}>
-                  <p className="text-4xl font-semibold tabular-nums">{u.v}</p>
-                  <p className="text-[11px] uppercase tracking-widest text-zinc-400">{u.l}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-4 text-sm text-zinc-500">
-              {target ? "This event has passed. Thank you!" : "Date to be announced"}
-            </p>
-          )}
+          {isMounted &&
+            (countdown && !countdown.passed ? (
+              <div className="mt-4 flex items-baseline gap-5">
+                {[
+                  { v: countdown.days, l: "Days" },
+                  { v: countdown.hours, l: "Hrs" },
+                  { v: countdown.mins, l: "Min" },
+                  { v: countdown.secs, l: "Sec" },
+                ].map((u) => (
+                  <div key={u.l}>
+                    <p className="text-4xl font-semibold tabular-nums">{u.v}</p>
+                    <p className="text-[11px] uppercase tracking-widest text-zinc-400">{u.l}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-zinc-500">
+                {target ? "This event has passed. Thank you!" : "Date to be announced"}
+              </p>
+            ))}
         </div>
+        </Reveal>
 
         {[
           { no: "01", name: "Akad", date: content.akadDate, time: content.akadTime, venue: content.akadVenue, maps: content.akadMapsUrl },
@@ -133,7 +153,8 @@ export function MinimalistTemplate({ title, content, guestName, rsvpSlot }: Temp
         ]
           .filter((e) => e.date || e.time || e.venue)
           .map((e) => (
-            <div key={e.name} className={`mt-10 border-t pt-6 ${"border-zinc-200 dark:border-zinc-800"}`}>
+            <Reveal key={e.name}>
+            <div className={`mt-10 rounded-2xl border p-6 ${card}`}>
               <p className="text-[11px] font-medium tracking-[0.3em] uppercase text-zinc-400">
                 {e.no} — {e.name}
               </p>
@@ -151,22 +172,26 @@ export function MinimalistTemplate({ title, content, guestName, rsvpSlot }: Temp
                 </a>
               )}
             </div>
+            </Reveal>
           ))}
 
         {content.galleryImages.length > 0 && (
+          <Reveal>
           <div className="mt-10 border-t border-zinc-200 pt-6 dark:border-zinc-800">
             <p className="flex items-center gap-2 text-[11px] font-medium tracking-[0.3em] uppercase text-zinc-400">
               <Images className="h-3.5 w-3.5" /> Gallery
             </p>
             <div className="mt-4 grid grid-cols-2 gap-2">
               {content.galleryImages.map((url) => (
-                <SafeImg key={url} src={url} alt="Galeri" className="aspect-square w-full object-cover" />
+                <SafeImg key={url} src={url} alt="Galeri" className="aspect-square w-full rounded-xl object-cover shadow-sm transition-transform duration-500 hover:scale-[1.02]" />
               ))}
             </div>
           </div>
+          </Reveal>
         )}
 
         {content.accounts.length > 0 && (
+          <Reveal>
           <div className="mt-10 border-t border-zinc-200 pt-6 dark:border-zinc-800">
             <p className="flex items-center gap-2 text-[11px] font-medium tracking-[0.3em] uppercase text-zinc-400">
               <Gift className="h-3.5 w-3.5" /> Digital Envelope
@@ -193,14 +218,17 @@ export function MinimalistTemplate({ title, content, guestName, rsvpSlot }: Temp
               ))}
             </div>
           </div>
+          </Reveal>
         )}
 
+        <Reveal>
         <div className="mt-10 border-t border-zinc-200 pt-6 dark:border-zinc-800">
           <p className="flex items-center gap-2 text-[11px] font-medium tracking-[0.3em] uppercase text-zinc-400">
             <MessageCircleHeart className="h-3.5 w-3.5" /> Wishes & RSVP
           </p>
           <div className="mt-4">{rsvpSlot}</div>
         </div>
+        </Reveal>
       </div>
     </div>
   );

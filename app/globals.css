@@ -24,3 +24,79 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ===== Animasi premium template undangan ===== */
+@keyframes invite-kenburns {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.08);
+  }
+}
+
+@keyframes invite-float-slow {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes invite-shimmer {
+  from {
+    background-position: 200% center;
+  }
+  to {
+    background-position: -200% center;
+  }
+}
+
+@keyframes invite-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-kenburns {
+  animation: invite-kenburns 18s ease-in-out infinite alternate;
+}
+
+.animate-float-slow {
+  animation: invite-float-slow 6s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: invite-glow-pulse 3s ease-in-out infinite;
+}
+
+/* Teks emas berkilau untuk template mewah */
+.text-shimmer-gold {
+  background: linear-gradient(
+    110deg,
+    #f6e27a 20%,
+    #fff8dc 40%,
+    #d4af37 55%,
+    #f6e27a 75%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: invite-shimmer 6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-kenburns,
+  .animate-float-slow,
+  .animate-glow-pulse,
+  .text-shimmer-gold {
+    animation: none;
+  }
+}

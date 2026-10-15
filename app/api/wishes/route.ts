@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { createWish, getWishesBySlug } from "@/lib/db";
+import {
+  createWish,
+  getLandingPageBasicBySlug,
+  getWishesBySlug,
+  isUniqueViolation,
+} from "@/lib/db";
 
 const ATTENDANCE = new Set(["Hadir", "Tidak Hadir", "Masih Ragu"]);
 
@@ -8,8 +13,12 @@ export async function GET(req: Request) {
   if (!slug) {
     return NextResponse.json({ error: "Parameter slug wajib diisi" }, { status: 400 });
   }
-  const wishes = await getWishesBySlug(slug);
-  return NextResponse.json({ ok: true, wishes });
+  try {
+    const wishes = await getWishesBySlug(slug);
+    return NextResponse.json({ ok: true, wishes });
+  } catch {
+    return NextResponse.json({ error: "Gagal memuat ucapan" }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
@@ -44,6 +53,50 @@ export async function POST(req: Request) {
     );
   }
 
-  const wish = await createWish({ page_slug: slug, name, message, attendance });
-  return NextResponse.json({ ok: true, wish }, { status: 201 });
+  // Pre-check: slug harus merujuk halaman yang ada (hindari FK 500).
+  try {
+    const page = await getLandingPageBasicBySlug(slug);
+    if (!page) {
+      return NextResponse.json(
+        { error: "Undangan tidak ditemukan" },
+        { status: 404 }
+      );
+    }
+  } catch {
+    return NextResponse.json(
+      { error: "Gagal memverifikasi undangan" },
+      { status: 500 }
+    );
+  }
+
+  try {
+    const wish = await createWish({
+      page_slug: slug,
+      name,
+      message,
+      attendance,
+    });
+    return NextResponse.json({ ok: true, wish }, { status: 201 });
+  } catch (error) {
+    // Balapan hapus halaman antara pre-check dan insert → FK violation.
+    if (isUniqueViolation(error) || isForeignKeyViolation(error)) {
+      return NextResponse.json(
+        { error: "Undangan tidak ditemukan" },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json(
+      { error: "Gagal menyimpan ucapan" },
+      { status: 500 }
+    );
+  }
+}
+
+function isForeignKeyViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code: unknown }).code === "23503"
+  );
 }

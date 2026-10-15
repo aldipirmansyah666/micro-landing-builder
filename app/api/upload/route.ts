@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { uploadToR2 } from "@/lib/r2";
+import {
+  extensionForMimeType,
+  isSupabaseStorageConfigured,
+  uploadToSupabaseStorage,
+  UPLOADS_BUCKET,
+} from "@/lib/supabase";
 
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -40,15 +45,67 @@ export async function POST(req: Request) {
       { status: 413 }
     );
   }
+  // Tolak SVG (bisa berisi script) walau lolos prefix image/.
+  if (file.type === "image/svg+xml") {
+    return NextResponse.json({ error: "SVG tidak diizinkan" }, { status: 400 });
+  }
+  if (!extensionForMimeType(file.type)) {
+    return NextResponse.json(
+      { error: `Tipe file tidak didukung: ${file.type}` },
+      { status: 400 }
+    );
+  }
 
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
-    const result = await uploadToR2({
-      buffer,
-      contentType: file.type,
-      folder: `uploads/${userId}`,
-    });
-    return NextResponse.json({ ok: true, ...result }, { status: 201 });
+
+    // 1) Supabase Storage (bucket publik `uploads`) — kembalikan URL publik
+    // resmi via getPublicUrl yang langsung bisa dipakai <img>/preview.
+    // NOTE: folder cukup userId saja (tanpa awalan "uploads/") karena nama
+    // bucket sudah menjadi prefix URL — awalan ganda menghasilkan
+    // /uploads/uploads/... yang 404.
+    if (isSupabaseStorageConfigured()) {
+      const result = await uploadToSupabaseStorage({
+        buffer,
+        contentType: file.type,
+        folder: userId,
+      });
+      return NextResponse.json({ ok: true, ...result }, { status: 201 });
+    }
+
+    // 2) Development lokal tanpa Supabase: simpan ke public/uploads/,
+    // kembalikan URL relatif yang valid (/uploads/nama-file.ext).
+    // (JANGAN dipakai di production — filesystem Vercel ephemeral dan
+    // tidak dibagikan antar instance; di production wajib Supabase.)
+    if (process.env.NODE_ENV === "development") {
+      const ext = extensionForMimeType(file.type) ?? "bin";
+      const { mkdir, writeFile } = await import("node:fs/promises");
+      const { join } = await import("node:path");
+      const { randomUUID } = await import("node:crypto");
+      const dir = join(process.cwd(), "public", "uploads");
+      await mkdir(dir, { recursive: true });
+      const filename = `${randomUUID()}.${ext}`;
+      await writeFile(join(dir, filename), buffer);
+      return NextResponse.json(
+        {
+          ok: true,
+          key: `uploads/${filename}`,
+          url: `/uploads/${filename}`,
+          contentType: file.type,
+          size: buffer.length,
+        },
+        { status: 201 }
+      );
+    }
+
+    // 3) Production tanpa Supabase: storage memang belum dikonfigurasi.
+    return NextResponse.json(
+      {
+        error:
+          `Storage belum dikonfigurasi (NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY + bucket publik '${UPLOADS_BUCKET}')`,
+      },
+      { status: 501 }
+    );
   } catch (error) {
     return NextResponse.json(
       {

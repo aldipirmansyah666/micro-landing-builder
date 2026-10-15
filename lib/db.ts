@@ -1,6 +1,7 @@
-import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
+import postgres from "postgres";
+import type { Sql } from "postgres";
 
-type SqlClient = NeonQueryFunction<false, false>;
+type SqlClient = Sql<Record<string, never>>;
 
 let cachedClient: SqlClient | null = null;
 
@@ -9,31 +10,156 @@ function getSql(): SqlClient {
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) {
       throw new Error(
-        "DATABASE_URL belum di-set. Tambahkan koneksi PostgreSQL Neon ke .env.local"
+        "DATABASE_URL belum di-set. Tambahkan connection string Supabase Postgres ke .env.local"
       );
     }
-    cachedClient = neon(connectionString);
+    cachedClient = postgres(connectionString, {
+      // Wajib mati saat memakai Supabase pooler (PgBouncer transaction mode).
+      prepare: false,
+    }) as SqlClient;
   }
   return cachedClient;
 }
 
 /**
- * Klien Neon lazy: error (bila DATABASE_URL absen) baru dilempar saat
+ * Klien Postgres lazy: error (bila DATABASE_URL absen) baru dilempar saat
  * query dieksekusi di runtime, bukan saat modul di-import (build time).
  * Meneruskan pemanggilan template-tag sekaligus properti (query/transaction/unsafe).
+ *
+ * Setiap query otomatis dibungkus `withDbRetry`: error sementara seperti
+ * koneksi terputus di-retry dengan backoff eksponensial,
+ * sehingga satu kegagalan jaringan sesaat tidak langsung menggagalkan request.
  */
 export const sql = new Proxy(() => {}, {
   apply(_target, _thisArg, args: unknown[]) {
-    const client = getSql() as (...a: unknown[]) => unknown;
-    return client(...args);
+    const client = getSql() as (...a: unknown[]) => Promise<unknown>;
+    return withDbRetry("query", () => client(...args));
   },
   get(_target, prop) {
     const value = (getSql() as unknown as Record<PropertyKey, unknown>)[prop];
-    return typeof value === "function"
-      ? (value as (...a: unknown[]) => unknown).bind(getSql())
-      : value;
+    if (typeof value !== "function") return value;
+    const bound = (value as (...a: unknown[]) => Promise<unknown>).bind(
+      getSql()
+    );
+    return (...a: unknown[]) =>
+      withDbRetry(String(prop), () => bound(...a));
   },
 }) as unknown as SqlClient;
+
+/** Jumlah total percobaan query (1 awal + 2 retry). */
+export const DB_MAX_ATTEMPTS = 3;
+/** Delay dasar backoff antar retry (ms), digandakan tiap percobaan + jitter. */
+export const DB_BASE_DELAY_MS = 200;
+
+/** Kode error Postgres yang aman di-retry (koneksi/konkurensi sementara). */
+const TRANSIENT_PG_CODES = new Set([
+  "08000", // connection_exception
+  "08001", // sqlclient_unable_to_establish_sqlconnection
+  "08003", // connection_does_not_exist
+  "08004", // sqlserver_rejected_establishment_of_sqlconnection
+  "08006", // connection_failure
+  "57P01", // admin_shutdown
+  "57P02", // crash_shutdown
+  "57P03", // cannot_connect_now
+  "53300", // too_many_connections
+  "40001", // serialization_failure
+  "40P01", // deadlock_detected
+]);
+
+/** Fragmen pesan error jaringan/driver yang menandakan kegagalan sementara. */
+const TRANSIENT_MESSAGE_PATTERNS = [
+  "abort",
+  "fetch failed",
+  "network",
+  "econnreset",
+  "econnrefused",
+  "econnaborted",
+  "etimedout",
+  "enotfound",
+  "eai_again",
+  "epipe",
+  "socket hang up",
+  "socket disconnected",
+  "connection closed",
+  "connection terminated",
+  "connection reset",
+  "connection refused",
+  "connection timeout",
+  "timed out",
+  "timeout",
+  "tls",
+  "temporarily",
+  "try again",
+];
+
+/**
+ * True bila error kemungkinan sementara dan layak di-retry: AbortError
+ * (fetch dibatalkan), koneksi Postgres/Supabase terputus, timeout, atau kode
+ * konkurensi sementara. Error logika (mis. unique violation 23505,
+ * syntax error, DATABASE_URL absen) selalu false — langsung dilempar.
+ */
+export function isTransientDbError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const record = error as Record<string, unknown>;
+  if (record.name === "AbortError" || record.code === "AbortError") {
+    return true;
+  }
+  if (
+    typeof record.code === "string" &&
+    TRANSIENT_PG_CODES.has(record.code)
+  ) {
+    return true;
+  }
+  const text =
+    typeof record.message === "string" ? record.message.toLowerCase() : "";
+  const name = typeof record.name === "string" ? record.name.toLowerCase() : "";
+  const haystack = `${name} ${text}`;
+  return TRANSIENT_MESSAGE_PATTERNS.some((pattern) =>
+    haystack.includes(pattern)
+  );
+}
+
+function dbRetryDelayMs(failedAttempt: number): number {
+  const exponential = DB_BASE_DELAY_MS * 2 ** (failedAttempt - 1);
+  // Jitter deterministik dari nomor percobaan — SENGAJA tanpa RNG bawaan:
+  // dengan `cacheComponents: true`, Next menandai akses ke sumber acak
+  // sebagai IO sehingga memicu error/blocking saat prerender.
+  // Nilai 0-99 yang bervariasi per percobaan tetap memecah thundering-herd
+  // antar retry yang bersamaan.
+  const jitter = (failedAttempt * 37 + 11) % 100;
+  return exponential + jitter;
+}
+
+/**
+ * Jalankan query dengan retry otomatis untuk error sementara.
+ * Non-transient error langsung dilempar tanpa retry. Error terakhir
+ * dilempar apa adanya setelah seluruh percobaan habis.
+ */
+export async function withDbRetry<T>(
+  operation: string,
+  fn: () => Promise<T>,
+  maxAttempts: number = DB_MAX_ATTEMPTS
+): Promise<T> {
+  let attempt = 0;
+  for (;;) {
+    try {
+      return await fn();
+    } catch (error) {
+      attempt += 1;
+      if (attempt >= maxAttempts || !isTransientDbError(error)) {
+        throw error;
+      }
+      const detail =
+        error instanceof Error ? error.message : String(error);
+      console.warn(
+        `[db] query "${operation}" gagal sementara (percobaan ${attempt}/${maxAttempts}): ${detail}. Retry...`
+      );
+      await new Promise((resolve) =>
+        setTimeout(resolve, dbRetryDelayMs(attempt))
+      );
+    }
+  }
+}
 
 export type UserRole = "admin" | "user";
 
@@ -51,7 +177,10 @@ export interface LandingPage {
   title: string;
   slug: string;
   template_type: string;
-  content_json: Record<string, unknown>;
+  // JSONB Postgres bisa terbaca sebagai objek, string JSON, atau string
+  // yang ter-stringify ganda tergantung driver/isi baris — lihat
+  // unwrap di toInvitationContent (lib/invitation.ts).
+  content_json: Record<string, unknown> | string;
   is_pro: boolean;
   created_at: string;
 }
@@ -128,13 +257,56 @@ export interface LandingPageWithOwner extends LandingPage {
   owner_email: string | null;
 }
 
-/** Ambil seluruh landing page dari semua user beserta email pemiliknya. */
-export async function getAllLandingPages(): Promise<LandingPageWithOwner[]> {
+export interface LandingPageBasic {
+  id: number;
+  slug: string;
+  user_id: string;
+  is_pro: boolean;
+  title: string;
+}
+
+/**
+ * Query ringan untuk verifikasi kepemilikan/checkout/pre-check publik.
+ * SENGAJA tidak membawa `content_json` (bisa 512KB) — hemat bandwidth Neon.
+ */
+export async function getLandingPageBasicBySlug(
+  slug: string
+): Promise<LandingPageBasic | undefined> {
   const rows = (await sql`
-    SELECT lp.*, u.email AS owner_email
+    SELECT id, slug, user_id, is_pro, title
+    FROM landing_pages WHERE slug = ${slug} LIMIT 1;
+  `) as LandingPageBasic[];
+  return rows[0];
+}
+
+/** Varian ringan untuk cek ownership tanpa `content_json`. */
+export async function getLandingPageBasicByUserAndSlug(
+  userId: string,
+  slug: string
+): Promise<LandingPageBasic | undefined> {
+  const rows = (await sql`
+    SELECT id, slug, user_id, is_pro, title
+    FROM landing_pages
+    WHERE user_id = ${userId} AND slug = ${slug}
+    LIMIT 1;
+  `) as LandingPageBasic[];
+  return rows[0];
+}
+
+/** Ambil seluruh landing page dari semua user beserta email pemiliknya. */
+export async function getAllLandingPages(
+  limit: number = 50,
+  offset: number = 0
+): Promise<LandingPageWithOwner[]> {
+  const safeLimit = Math.min(Math.max(limit, 1), 200);
+  const safeOffset = Math.max(offset, 0);
+  const rows = (await sql`
+    SELECT lp.id, lp.user_id, lp.title, lp.slug, lp.template_type, lp.is_pro,
+      lp.created_at, u.email AS owner_email
     FROM landing_pages lp
     LEFT JOIN users u ON u.clerk_id = lp.user_id
-    ORDER BY lp.created_at DESC;
+    ORDER BY lp.created_at DESC
+    LIMIT ${safeLimit} OFFSET ${safeOffset};
   `) as LandingPageWithOwner[];
   return rows;
 }
@@ -189,7 +361,7 @@ export async function createLandingPage(
       ${input.user_id},
       ${input.title},
       ${input.slug},
-      ${input.template_type ?? "minimal"},
+      ${input.template_type ?? "minimalist"},
       ${JSON.stringify(input.content_json ?? {})}::jsonb,
       ${input.is_pro ?? false}
     )
@@ -212,7 +384,7 @@ export async function updateLandingPage(
   const rows = (await sql`
     UPDATE landing_pages
     SET title = ${input.title},
-        template_type = ${input.template_type ?? "minimal"},
+        template_type = ${input.template_type ?? "minimalist"},
         content_json = ${JSON.stringify(input.contentJson)}::jsonb
     WHERE user_id = ${userId} AND slug = ${slug}
     RETURNING *;
@@ -414,11 +586,18 @@ export interface Guest {
   created_at: string;
 }
 
-export async function getGuestsBySlug(slug: string): Promise<Guest[]> {
+export async function getGuestsBySlug(
+  slug: string,
+  limit: number = 200,
+  offset: number = 0
+): Promise<Guest[]> {
+  const safeLimit = Math.min(Math.max(limit, 1), 500);
+  const safeOffset = Math.max(offset, 0);
   const rows = (await sql`
     SELECT * FROM guests
     WHERE page_slug = ${slug}
-    ORDER BY created_at ASC;
+    ORDER BY created_at ASC
+    LIMIT ${safeLimit} OFFSET ${safeOffset};
   `) as Guest[];
   return rows;
 }

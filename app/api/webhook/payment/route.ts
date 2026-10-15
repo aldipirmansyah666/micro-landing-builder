@@ -44,7 +44,12 @@ interface WebhookBody {
 }
 
 function asString(value: unknown): string {
-  return typeof value === "string" ? value : "";
+  if (typeof value === "string") return value;
+  // Midtrans/Xendit kadang kirim angka (status_code, gross_amount, amount).
+  // String() eksplisit agar hash signature tidak jadi string kosong.
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "boolean") return String(value);
+  return "";
 }
 
 /** Ambil slug dari metadata/custom field bila tersedia. */
@@ -68,9 +73,17 @@ export function slugFromOrderId(orderId: string): string | null {
   const value = orderId.trim();
   if (!value.startsWith("pro-")) return null;
   const withoutPrefix = value.slice("pro-".length);
-  // Buang suffix timestamp opsional: `-` + 10-13 digit di akhir.
-  const withoutTimestamp = withoutPrefix.replace(/-\d{10,13}$/, "");
-  return withoutTimestamp || null;
+  // Buang suffix timestamp 13-digit (Date.now()) — hanya bila segmen terakhir
+  // tepat 13 digit, agar slug legit berakhiran angka (cth ...-1234567890) aman.
+  const idx = withoutPrefix.lastIndexOf("-");
+  if (idx > 0) {
+    const tail = withoutPrefix.slice(idx + 1);
+    if (/^\d{13}$/.test(tail)) {
+      const base = withoutPrefix.slice(0, idx);
+      return base || null;
+    }
+  }
+  return withoutPrefix || null;
 }
 
 function verifyMidtransSignature(body: WebhookBody): boolean {
@@ -101,7 +114,27 @@ function parseAmount(body: WebhookBody): number | null {
   const raw = body.gross_amount ?? body.amount;
   if (typeof raw === "number" && Number.isFinite(raw)) return raw;
   if (typeof raw === "string") {
-    const n = parseFloat(raw.replace(/[^0-9.]/g, ""));
+    // Normalisasi format ID ("49.000", "Rp 49.000,00") dan EN ("49000.00"):
+    // hapus pemisah ribuan, ubah koma desimal jadi titik.
+    const cleaned = raw.replace(/[^0-9.,]/g, "");
+    if (!cleaned) return null;
+    let normalized = cleaned;
+    if (cleaned.includes(",") && cleaned.includes(".")) {
+      // "1.234,56" (ID) -> "1234.56" ; "1,234.56" (EN) -> "1234.56"
+      const lastComma = cleaned.lastIndexOf(",");
+      const lastDot = cleaned.lastIndexOf(".");
+      normalized =
+        lastComma > lastDot
+          ? cleaned.replace(/\./g, "").replace(",", ".")
+          : cleaned.replace(/,/g, "");
+    } else if (cleaned.includes(",")) {
+      // "49000,00" -> "49000.00"
+      normalized = cleaned.replace(/\./g, "").replace(",", ".");
+    } else if (/^\d{1,3}(\.\d{3})+$/.test(cleaned)) {
+      // "49.000" (ribuan ID tanpa desimal) -> "49000"
+      normalized = cleaned.replace(/\./g, "");
+    }
+    const n = parseFloat(normalized);
     return Number.isFinite(n) ? n : null;
   }
   return null;
@@ -213,16 +246,46 @@ export async function POST(req: Request) {
   }
 
   const provider = isMidtrans ? "midtrans" : isXendit ? "xendit" : "generic";
-  const order = await upsertPaidOrder({
-    order_id: orderId,
-    page_slug: slug,
-    amount: amount ?? 0,
-    currency: asString(body.currency) || "IDR",
-    provider,
-    rawPayload: body as Record<string, unknown>,
-  });
+  let order;
+  try {
+    order = await upsertPaidOrder({
+      order_id: orderId,
+      page_slug: slug,
+      amount: amount ?? 0,
+      currency: asString(body.currency) || "IDR",
+      provider,
+      rawPayload: body as Record<string, unknown>,
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "Gagal mencatat order" },
+      { status: 500 }
+    );
+  }
 
-  await setLandingPageProBySlug(slug, true);
+  try {
+    const updated = await setLandingPageProBySlug(slug, true);
+    if (!updated) {
+      // Order paid tercatat, tapi halaman hilang di tengah jalan.
+      console.error(
+        `[payment-webhook] order ${orderId} paid namun slug '${slug}' tidak ditemukan saat upgrade`
+      );
+      return NextResponse.json(
+        { error: `Landing page '${slug}' tidak ditemukan`, order_id: order.order_id },
+        { status: 404 }
+      );
+    }
+  } catch {
+    // INKONSISTENSI: order paid tapi is_pro gagal — kembalikan 500 agar
+    // provider me-retry webhook (idempoten via ON CONFLICT order_id).
+    console.error(
+      `[payment-webhook] gagal upgrade PRO slug '${slug}' untuk order ${orderId}`
+    );
+    return NextResponse.json(
+      { error: "Gagal mengaktifkan PRO, webhook akan dicoba ulang" },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({
     ok: true,

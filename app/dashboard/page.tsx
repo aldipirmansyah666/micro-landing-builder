@@ -20,8 +20,11 @@ import {
 } from "@/lib/db";
 import { DeleteLandingPageButton } from "./DeleteButton";
 import { UpgradeProButton } from "@/components/billing/UpgradeProModal";
+import { hasProAccess } from "@/lib/entitlements";
+import { templateLabel } from "@/lib/templates";
 
-// Dashboard bersifat privat: render per-request (blocking), bukan prerender statis.
+// Halaman privat (auth + query Neon per-request): boleh blocking,
+// opt-out dari validasi instant navigation (Next.js 16 + cacheComponents).
 export const instant = false;
 
 function StatusBadge({ isPro }: { isPro: boolean }) {
@@ -40,14 +43,22 @@ function StatusBadge({ isPro }: { isPro: boolean }) {
   );
 }
 
-function LandingPageCard({ page }: { page: LandingPage }) {
+function LandingPageCard({
+  page,
+  isAdmin,
+}: {
+  page: LandingPage;
+  isAdmin: boolean;
+}) {
+  // Admin & development/lokal mendapat akses Pro penuh (bypass paywall).
+  const showAsPro = hasProAccess({ isPro: page.is_pro, isAdmin });
   return (
     <article className="flex flex-col rounded-2xl border border-zinc-200 bg-white p-5 transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex items-start justify-between gap-3">
         <h2 className="truncate text-base font-semibold tracking-tight">
           {page.title}
         </h2>
-        <StatusBadge isPro={page.is_pro} />
+        <StatusBadge isPro={showAsPro} />
       </div>
 
       <Link
@@ -59,7 +70,7 @@ function LandingPageCard({ page }: { page: LandingPage }) {
       </Link>
 
       <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-500">
-        Template: {page.template_type} · Dibuat{" "}
+        Template: {templateLabel(page.template_type)} · Dibuat{" "}
         {new Date(page.created_at).toLocaleDateString("id-ID", {
           day: "numeric",
           month: "short",
@@ -92,7 +103,7 @@ function LandingPageCard({ page }: { page: LandingPage }) {
           <Users className="h-3.5 w-3.5" />
           Tamu & RSVP
         </Link>
-        {!page.is_pro && <UpgradeProButton slug={page.slug} />}
+        {!showAsPro && <UpgradeProButton slug={page.slug} />}
       </div>
     </article>
   );
@@ -188,7 +199,7 @@ export default async function DashboardPage() {
         ) : (
           <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {pages.map((page) => (
-              <LandingPageCard key={page.id} page={page} />
+              <LandingPageCard key={page.id} page={page} isAdmin={isUserAdmin} />
             ))}
           </section>
         )}

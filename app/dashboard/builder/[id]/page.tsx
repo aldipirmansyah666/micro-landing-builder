@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
-import { getLandingPageByUserAndSlug } from "@/lib/db";
+import { getLandingPageByUserAndSlug, getUserRole } from "@/lib/db";
+import { hasProAccess } from "@/lib/entitlements";
 import { BuilderClient } from "./BuilderClient";
 
-// Builder bersifat privat: render per-request (blocking), bukan prerender statis.
+// Builder privat (auth + query Neon per-request): boleh blocking,
+// opt-out dari validasi instant navigation (Next.js 16 + cacheComponents).
 export const instant = false;
 
 export default async function BuilderPage({
@@ -18,8 +20,13 @@ export default async function BuilderPage({
   const { id } = await params;
   const isNew = id === "new";
 
+  // Admin & development/lokal selalu mendapat akses Pro penuh (bypass paywall).
+  const role = await getUserRole(userId);
+  const isAdmin = role === "admin";
+
   if (isNew) {
-    return <BuilderClient mode="new" initial={null} plan="free" />;
+    const pro = hasProAccess({ isPro: false, isAdmin });
+    return <BuilderClient mode="new" initial={null} plan={pro ? "pro" : "free"} />;
   }
 
   // `id` diperlakukan sebagai slug milik user yang sedang login.
@@ -30,7 +37,7 @@ export default async function BuilderPage({
     <BuilderClient
       mode="edit"
       initial={page}
-      plan={page.is_pro ? "pro" : "free"}
+      plan={hasProAccess({ isPro: page.is_pro, isAdmin }) ? "pro" : "free"}
     />
   );
 }

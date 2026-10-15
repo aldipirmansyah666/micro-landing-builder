@@ -3,23 +3,27 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import {
   createLandingPage,
   getLandingPageByUserAndSlug,
+  getUserRole,
   isUniqueViolation,
   updateLandingPage,
   upsertUser,
 } from "@/lib/db";
-import { checkSaveEntitlements } from "@/lib/entitlements";
-import { toInvitationContent } from "@/lib/invitation";
+import { checkSaveEntitlements, hasProAccess } from "@/lib/entitlements";
+import {
+  ALL_TEMPLATE_IDS,
+  LEGACY_TEMPLATE_ALIASES,
+  resolveTemplate,
+  toInvitationContent,
+} from "@/lib/invitation";
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-// Template yang dikenal renderer (termasuk nilai lawas untuk kompatibilitas).
-const TEMPLATE_ALLOWLIST = new Set([
-  "elegant",
-  "rustic",
-  "floral",
-  "minimalist",
-  "minimal",
-  "modern",
+// Diturunkan dari sumber kanonis (seluruh id katalog + lawas + alias)
+// agar penambahan template baru otomatis ikut tersimpan — tidak ada lagi
+// allowlist hardcoded yang menolak template baru dengan 400.
+const TEMPLATE_ALLOWLIST = new Set<string>([
+  ...ALL_TEMPLATE_IDS,
+  ...Object.keys(LEGACY_TEMPLATE_ALIASES),
 ]);
 
 const MAX_CONTENT_BYTES = 512 * 1024; // 512KB
@@ -98,10 +102,10 @@ export async function POST(req: Request) {
 
   const slug = typeof body.slug === "string" ? body.slug.trim() : "";
   const title = typeof body.title === "string" ? body.title.trim() : "";
-  const templateType =
+  const rawTemplateType =
     typeof body.template_type === "string" && body.template_type.trim() !== ""
       ? body.template_type.trim()
-      : "minimal";
+      : "minimalist";
   const contentJson = isRecord(body.content_json) ? body.content_json : null;
 
   if (!SLUG_RE.test(slug) || slug.length > 60) {
@@ -125,12 +129,16 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-  if (!TEMPLATE_ALLOWLIST.has(templateType)) {
+  if (!TEMPLATE_ALLOWLIST.has(rawTemplateType.trim().toLowerCase())) {
     return NextResponse.json(
       { error: "template_type tidak dikenal" },
       { status: 400 }
     );
   }
+  // Simpan SELALU dalam bentuk kanonis agar pembaca publik (/p/[slug])
+  // yang memakai resolveTemplate yang sama pasti merender template yang
+  // dipilih di builder — tidak ada lagi mismatch "Minimal" vs "minimalist".
+  const templateType = resolveTemplate(rawTemplateType);
   if (JSON.stringify(contentJson).length > MAX_CONTENT_BYTES) {
     return NextResponse.json(
       { error: "Konten terlalu besar (maks 512KB)" },
@@ -152,9 +160,14 @@ export async function POST(req: Request) {
   const existing = await getLandingPageByUserAndSlug(userId, slug);
 
   // Entitlement: halaman baru selalu Free; update mengikuti status saat ini.
+  // Admin & development/lokal selalu lolos sebagai Pro (bypass paywall).
+  const role = await getUserRole(userId);
   const normalized = toInvitationContent(contentJson);
   const entitlementError = checkSaveEntitlements({
-    isPro: existing?.is_pro ?? false,
+    isPro: hasProAccess({
+      isPro: existing?.is_pro ?? false,
+      isAdmin: role === "admin",
+    }),
     templateType,
     galleryCount: normalized.galleryImages.length,
     hasBacksound: normalized.backsoundUrl.trim() !== "",
