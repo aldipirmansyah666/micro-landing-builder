@@ -23,10 +23,9 @@ function detectProvider(): Provider | null {
 }
 
 function basicAuth(secret: string): string {
-  // Web-standard base64 (Worker-compatible, tanpa Node Buffer).
-  // Format WAJIB Midtrans: base64("<ServerKey>:") — titik dua di akhir
-  // sebelum di-encode, tanpanya API menjawab 401.
-  return `Basic ${btoa(`${secret.trim()}:`)}`;
+  // Auth WAJIB Midtrans: "Basic " + base64("<ServerKey>:") — titik dua
+  // di akhir SEBELUM di-encode; tanpanya API menjawab 401.
+  return `Basic ${Buffer.from(`${secret.trim()}:`).toString("base64")}`;
 }
 
 /**
