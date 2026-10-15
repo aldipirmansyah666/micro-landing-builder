@@ -24,7 +24,46 @@ function detectProvider(): Provider | null {
 
 function basicAuth(secret: string): string {
   // Web-standard base64 (Worker-compatible, tanpa Node Buffer).
-  return `Basic ${btoa(`${secret}:`)}`;
+  // Format WAJIB Midtrans: base64("<ServerKey>:") — titik dua di akhir
+  // sebelum di-encode, tanpanya API menjawab 401.
+  return `Basic ${btoa(`${secret.trim()}:`)}`;
+}
+
+/**
+ * Base URL Snap: override eksplisit > flag produksi > sandbox.
+ * Ketidakcocokan environment adalah penyebab 401 paling umum
+ * (mis. key produksi dipakai ke sandbox), jadi dipetakan eksplisit.
+ */
+function midtransBase(): string {
+  const override = process.env.MIDTRANS_API_BASE_URL?.trim();
+  if (override) return override.replace(/\/+$/, "");
+  return process.env.MIDTRANS_IS_PRODUCTION === "true"
+    ? "https://app.midtrans.com"
+    : "https://app.sandbox.midtrans.com";
+}
+
+/**
+ * Validasi awal agar salah environment gagal cepat dengan pesan jelas,
+ * bukan 401 buram dari Midtrans.
+ */
+function midtransKeyError(key: string, base: string): string | null {
+  const sandbox = base.includes("sandbox");
+  const isSandboxKey = key.startsWith("SB-Mid-server-");
+  const isProdKey = key.startsWith("Mid-server-");
+  if (!isSandboxKey && !isProdKey) {
+    return (
+      "Format MIDTRANS_SERVER_KEY tidak dikenali " +
+      "(sandbox: SB-Mid-server-…, produksi: Mid-server-…). " +
+      "Jangan pakai Client Key (SB-Mid-client-…)."
+    );
+  }
+  if (sandbox && isProdKey) {
+    return "Server Key produksi dipakai ke endpoint sandbox — set MIDTRANS_IS_PRODUCTION=true atau pakai key SB-Mid-server-…";
+  }
+  if (!sandbox && isSandboxKey) {
+    return "Server Key sandbox dipakai ke endpoint produksi — set MIDTRANS_IS_PRODUCTION=false atau pakai key Mid-server-…";
+  }
+  return null;
 }
 
 /** Info harga & provider untuk modal upgrade (tidak butuh login). */
@@ -45,9 +84,10 @@ async function createMidtransTransaction(input: {
   email?: string;
   origin: string;
 }): Promise<{ payment_url: string; snap_token?: string }> {
-  const serverKey = process.env.MIDTRANS_SERVER_KEY as string;
-  const base =
-    process.env.MIDTRANS_API_BASE_URL ?? "https://app.sandbox.midtrans.com";
+  const serverKey = (process.env.MIDTRANS_SERVER_KEY as string).trim();
+  const base = midtransBase();
+  const keyError = midtransKeyError(serverKey, base);
+  if (keyError) throw new Error(keyError);
   const res = await fetch(`${base}/snap/v1/transactions`, {
     method: "POST",
     headers: {
@@ -72,7 +112,12 @@ async function createMidtransTransaction(input: {
     }),
   });
   if (!res.ok) {
-    throw new Error(`Midtrans menolak transaksi (HTTP ${res.status})`);
+    // Sertakan pesan asli Midtrans (terpotong) agar 401/4xx bisa didiagnosis
+    // tanpa menebak — body error tidak mengandung secret.
+    const detail = await res.text().catch(() => "");
+    throw new Error(
+      `Midtrans menolak transaksi (HTTP ${res.status})${detail ? `: ${detail.slice(0, 300)}` : ""}`
+    );
   }
   const data = (await res.json()) as {
     token?: string;

@@ -10,6 +10,7 @@ import {
   type TemplateMeta,
 } from "@/lib/templates";
 import { InvitationTemplate } from "./InvitationTemplate";
+import { StaticPreview } from "./parts";
 
 export type TemplateFilter =
   | "Semua"
@@ -79,13 +80,15 @@ function TemplateCard({
           menutupi teks nama template di badan kartu. */}
       <div className="relative h-56 overflow-hidden rounded-t-lg bg-zinc-100 dark:bg-zinc-900">
         <div aria-hidden className="pointer-events-none h-full w-full overflow-hidden">
-          <InvitationTemplate
-            title="Demo"
-            templateType={meta.id}
-            content={DEMO_INVITATION}
-            defaultOpened
-            rsvpSlot={null}
-          />
+          <StaticPreview>
+            <InvitationTemplate
+              title="Demo"
+              templateType={meta.id}
+              content={DEMO_INVITATION}
+              defaultOpened
+              rsvpSlot={null}
+            />
+          </StaticPreview>
         </div>
         <div
           aria-hidden
@@ -448,18 +451,20 @@ function TemplatePreviewModal({
           </button>
         </div>
         <div className="overflow-y-auto">
-          <InvitationTemplate
-            key={templateId}
-            title="Demo Undangan"
-            templateType={templateId}
-            content={DEMO_INVITATION}
-            guestName="Tamu Undangan"
-            rsvpSlot={
-              <div className="rounded-2xl border border-dashed border-zinc-300 p-4 text-center text-xs text-zinc-500 dark:border-zinc-700">
-                Form Ucapan & RSVP tampil di sini pada halaman live.
-              </div>
-            }
-          />
+          <StaticPreview>
+            <InvitationTemplate
+              key={templateId}
+              title="Demo Undangan"
+              templateType={templateId}
+              content={DEMO_INVITATION}
+              guestName="Tamu Undangan"
+              rsvpSlot={
+                <div className="rounded-2xl border border-dashed border-zinc-300 p-4 text-center text-xs text-zinc-500 dark:border-zinc-700">
+                  Form Ucapan & RSVP tampil di sini pada halaman live.
+                </div>
+              }
+            />
+          </StaticPreview>
         </div>
         <div className="border-t border-zinc-200 p-3 dark:border-zinc-800">
           {locked && (

@@ -8,6 +8,37 @@ import {
 
 const ATTENDANCE = new Set(["Hadir", "Tidak Hadir", "Masih Ragu"]);
 
+// Rate-limit sederhana per IP+slug: maks 5 ucapan per 10 menit.
+// Best-effort in-memory (reset saat instance restart / multi-instance);
+// untuk skala besar ganti dengan store persisten (mis. Upstash Ratelimit).
+const WISH_WINDOW_MS = 10 * 60 * 1000;
+const WISH_MAX_PER_WINDOW = 5;
+const wishHits = new Map<string, number[]>();
+
+function wishRateLimitOk(key: string): boolean {
+  const now = Date.now();
+  const recent = (wishHits.get(key) ?? []).filter((t) => now - t < WISH_WINDOW_MS);
+  if (recent.length >= WISH_MAX_PER_WINDOW) {
+    wishHits.set(key, recent);
+    return false;
+  }
+  recent.push(now);
+  wishHits.set(key, recent);
+  // Bersihkan entri basi sesekali agar Map tidak tumbuh tanpa batas.
+  if (wishHits.size > 5000) {
+    for (const [k, v] of wishHits) {
+      if (v.length === 0 || now - v[v.length - 1]! >= WISH_WINDOW_MS) wishHits.delete(k);
+    }
+  }
+  return true;
+}
+
+function clientIp(req: Request): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]!.trim();
+  return req.headers.get("x-real-ip")?.trim() ?? "unknown";
+}
+
 export async function GET(req: Request) {
   const slug = new URL(req.url).searchParams.get("slug")?.trim() ?? "";
   if (!slug) {
@@ -36,6 +67,12 @@ export async function POST(req: Request) {
     typeof body.attendance === "string" && ATTENDANCE.has(body.attendance)
       ? body.attendance
       : "Hadir";
+
+  // Honeypot anti-bot: field tersembunyi yang hanya diisi bot.
+  // Tolak diam-diam sebagai sukses palsu agar bot tidak belajar.
+  if (typeof body.website_address === "string" && body.website_address.trim() !== "") {
+    return NextResponse.json({ ok: true }, { status: 201 });
+  }
 
   if (!slug) {
     return NextResponse.json({ error: "Slug wajib diisi" }, { status: 400 });
@@ -66,6 +103,13 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { error: "Gagal memverifikasi undangan" },
       { status: 500 }
+    );
+  }
+
+  if (!wishRateLimitOk(`${clientIp(req)}:${slug}`)) {
+    return NextResponse.json(
+      { error: "Terlalu banyak ucapan. Coba lagi beberapa menit lagi." },
+      { status: 429 }
     );
   }
 

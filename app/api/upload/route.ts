@@ -74,7 +74,8 @@ export async function POST(req: Request) {
     }
 
     // 2) Development lokal tanpa Supabase: simpan ke public/uploads/,
-    // kembalikan URL relatif yang valid (/uploads/nama-file.ext).
+    // kembalikan URL ABSOLUT agar lolos validateContentUrls() di save-route
+    // (yang mewajibkan http(s) — path relatif selalu ditolak).
     // (JANGAN dipakai di production — filesystem Vercel ephemeral dan
     // tidak dibagikan antar instance; di production wajib Supabase.)
     if (process.env.NODE_ENV === "development") {
@@ -86,11 +87,12 @@ export async function POST(req: Request) {
       await mkdir(dir, { recursive: true });
       const filename = `${randomUUID()}.${ext}`;
       await writeFile(join(dir, filename), buffer);
+      const publicUrl = `${new URL(req.url).origin}/uploads/${filename}`;
       return NextResponse.json(
         {
           ok: true,
           key: `uploads/${filename}`,
-          url: `/uploads/${filename}`,
+          url: publicUrl,
           contentType: file.type,
           size: buffer.length,
         },

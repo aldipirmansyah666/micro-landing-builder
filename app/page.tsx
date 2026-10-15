@@ -5,6 +5,7 @@ import { Show, UserButton } from "@clerk/nextjs";
 import { ArrowRight, Check, Eye, Heart, MapPin, Sparkles } from "lucide-react";
 import { DEMO_INVITATION, TEMPLATE_REGISTRY } from "@/lib/templates";
 import { InvitationTemplate } from "@/components/templates/InvitationTemplate";
+import { StaticPreview } from "@/components/templates/parts";
 
 const FEATURED_IDS = [
   "aruna",
@@ -109,7 +110,7 @@ export default function Home() {
       </header>
 
       {/* Hero */}
-      <main className="relative mx-auto flex w-full max-w-5xl flex-1 flex-col overflow-hidden px-6 pt-12 pb-20 sm:pt-16">
+      <main className="relative mx-auto flex w-full max-w-5xl flex-1 flex-col overflow-x-clip px-6 pt-12 pb-20 sm:pt-16">
         {/* Aura gradien + dekorasi */}
         <div aria-hidden className="pointer-events-none absolute inset-0">
           <div className="absolute -top-24 left-1/4 h-96 w-96 rounded-full bg-[#F4735C]/15 blur-3xl" />
@@ -307,13 +308,15 @@ export default function Home() {
                     aria-hidden
                     className="pointer-events-none h-full w-full overflow-hidden"
                   >
-                    <InvitationTemplate
-                      title="Demo"
-                      templateType={t.id}
-                      content={DEMO_INVITATION}
-                      defaultOpened
-                      rsvpSlot={null}
-                    />
+                    <StaticPreview>
+                      <InvitationTemplate
+                        title="Demo"
+                        templateType={t.id}
+                        content={DEMO_INVITATION}
+                        defaultOpened
+                        rsvpSlot={null}
+                      />
+                    </StaticPreview>
                   </div>
                   <div
                     aria-hidden

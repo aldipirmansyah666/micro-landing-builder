@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import { eventTimestamp, type InvitationContent } from "@/lib/invitation";
 import { useCountdown } from "./shared";
 
@@ -109,6 +109,22 @@ export interface CountdownLabels {
 }
 
 /**
+ * Konteks pajangan statis: bungkus pohon thumbnail katalog/landing dengan
+ * <StaticPreview> agar countdown di dalamnya tidak menjalankan timer
+ * setInterval 1 detik — menghemat puluhan timer per halaman.
+ * Render fallback (teks tanggal) tanpa mismatch hidrasi.
+ */
+const StaticPreviewContext = createContext(false);
+
+export function StaticPreview({ children }: { children: React.ReactNode }) {
+  return (
+    <StaticPreviewContext.Provider value={true}>
+      {children}
+    </StaticPreviewContext.Provider>
+  );
+}
+
+/**
  * Kotak countdown generik — tiap template mengatur tampilannya
  * lewat className. Null (tanggal kosong) → fallback, bukan error.
  */
@@ -120,6 +136,7 @@ export function CountdownUnits({
   labelClass,
   labels = { days: "Hari", hours: "Jam", mins: "Menit", secs: "Detik" },
   fallback,
+  staticPreview = false,
 }: {
   target: number | null;
   opened: boolean;
@@ -128,11 +145,17 @@ export function CountdownUnits({
   labelClass: string;
   labels?: CountdownLabels;
   fallback: React.ReactNode;
+  /**
+   * Bila true (atau di dalam <StaticPreview>), timer tidak berjalan —
+   * untuk thumbnail katalog/landing yang hanya pajangan.
+   */
+  staticPreview?: boolean;
 }) {
+  const forcedStatic = useContext(StaticPreviewContext);
   // `useCountdown` mengembalikan null sebelum mount (aman prerender &
   // tanpa hydration mismatch), sehingga render awal selalu fallback —
   // konsisten antara server dan client.
-  const countdown = useCountdown(target, opened);
+  const countdown = useCountdown(target, opened && !staticPreview && !forcedStatic);
   if (!countdown || countdown.passed) return <>{fallback}</>;
   const units = [
     { v: countdown.days, l: labels.days },
