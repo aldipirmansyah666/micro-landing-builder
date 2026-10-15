@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Suspense } from "react";
 import { Show, UserButton } from "@clerk/nextjs";
-import { ArrowRight, Eye } from "lucide-react";
+import { ArrowRight, Check, Eye, Heart, MapPin, Sparkles } from "lucide-react";
 import { DEMO_INVITATION, TEMPLATE_REGISTRY } from "@/lib/templates";
 import { InvitationTemplate } from "@/components/templates/InvitationTemplate";
 
@@ -109,55 +109,136 @@ export default function Home() {
       </header>
 
       {/* Hero */}
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center px-6 pt-16 pb-20 text-center sm:pt-24">
-        <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#F4735C]/30 bg-[#F4735C]/10 px-3 py-1 text-xs font-medium text-[#C24E38] dark:border-[#F4735C]/40 dark:bg-[#F4735C]/10 dark:text-[#F49A86]">
-          ✨ Platform Undangan Digital Pernikahan #1
-        </span>
-        <h1 className="max-w-3xl text-4xl leading-tight font-semibold tracking-tight sm:text-6xl">
-          Buat Undangan Digital Pernikahan Mewah & Elegan dalam Hitungan Menit.
-        </h1>
-        <p className="mt-6 max-w-xl text-base leading-7 text-zinc-600 sm:text-lg dark:text-zinc-400">
-          Bagikan momen bahagiamu bersama NikahYuk. Pilih dari 18+ template
-          eksklusif, atur cerita cinta, lokasi Google Maps, galeri foto, dan
-          RSVP tamu secara instan.
-        </p>
-        <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-          <Suspense
-            fallback={
-              <Link
-                href="/dashboard"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#F4735C] px-7 text-sm font-medium text-white shadow-lg shadow-[#F4735C]/30 hover:bg-[#E15F47]"
+      <main className="relative mx-auto flex w-full max-w-5xl flex-1 flex-col overflow-hidden px-6 pt-12 pb-20 sm:pt-16">
+        {/* Aura gradien + dekorasi */}
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-24 left-1/4 h-96 w-96 rounded-full bg-[#F4735C]/15 blur-3xl" />
+          <div className="absolute top-48 -right-24 h-80 w-80 rounded-full bg-[#E8A94E]/20 blur-3xl" />
+          <div className="absolute top-96 -left-28 h-72 w-72 rounded-full bg-[#F4735C]/10 blur-3xl" />
+          <div className="absolute top-8 right-6 h-44 w-44 rounded-full border border-[#F4735C]/20" />
+          <div className="absolute top-14 right-12 h-32 w-32 rounded-full border border-[#E8A94E]/30" />
+          <div className="absolute bottom-24 left-8 h-28 w-28 rounded-full border border-[#F4735C]/15" />
+          <Sparkles className="absolute top-20 left-[10%] h-4 w-4 animate-pulse text-[#F4735C]/60" />
+          <Sparkles className="absolute top-64 right-[8%] h-5 w-5 animate-pulse text-[#E8A94E]/70 [animation-delay:0.6s]" />
+          <Heart className="absolute bottom-40 left-[6%] h-4 w-4 animate-pulse text-[#F4735C]/40 [animation-delay:1.2s]" />
+          <span className="absolute top-40 left-[42%] h-1.5 w-1.5 rounded-full bg-[#E8A94E]/70" />
+          <span className="absolute top-72 right-[38%] h-1 w-1 rounded-full bg-[#F4735C]/70" />
+          <span className="absolute bottom-56 left-[30%] h-1.5 w-1.5 rounded-full bg-[#F4735C]/50" />
+        </div>
+
+        <div className="relative grid items-center gap-12 text-center lg:grid-cols-2 lg:text-left">
+          <div className="flex flex-col items-center lg:items-start">
+            <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#F4735C]/30 bg-[#F4735C]/10 px-3 py-1 text-xs font-medium text-[#C24E38] dark:border-[#F4735C]/40 dark:bg-[#F4735C]/10 dark:text-[#F49A86]">
+              ✨ Platform Undangan Digital Pernikahan #1
+            </span>
+            <h1 className="max-w-3xl text-4xl leading-tight font-semibold tracking-tight sm:text-6xl">
+              Buat Undangan Digital Pernikahan{" "}
+              <span className="bg-gradient-to-r from-[#F4735C] to-[#E8A94E] bg-clip-text text-transparent">
+                Mewah & Elegan
+              </span>{" "}
+              dalam Hitungan Menit.
+            </h1>
+            <p className="mt-6 max-w-xl text-base leading-7 text-zinc-600 sm:text-lg dark:text-zinc-400">
+              Bagikan momen bahagiamu bersama NikahYuk. Pilih dari 18+ template
+              eksklusif, atur cerita cinta, lokasi Google Maps, galeri foto, dan
+              RSVP tamu secara instan.
+            </p>
+            <div className="mt-10 flex w-full flex-col gap-3 sm:flex-row sm:justify-center lg:justify-start">
+              <Suspense
+                fallback={
+                  <Link
+                    href="/dashboard"
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#F4735C] px-7 text-sm font-medium text-white shadow-lg shadow-[#F4735C]/30 hover:bg-[#E15F47]"
+                  >
+                    Mulai Buat Undangan
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                }
               >
-                Mulai Buat Undangan
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            }
-          >
-            <Show when="signed-out">
-              <Link
-                href="/sign-up"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#F4735C] px-7 text-sm font-medium text-white shadow-lg shadow-[#F4735C]/30 transition-colors hover:bg-[#E15F47]"
-              >
-                Mulai Buat Undangan
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                href="/sign-in"
-                className="inline-flex h-12 items-center justify-center rounded-full border border-zinc-200 px-7 text-sm font-medium transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
-              >
-                Saya sudah punya akun
-              </Link>
-            </Show>
-            <Show when="signed-in">
-              <Link
-                href="/dashboard"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#F4735C] px-7 text-sm font-medium text-white shadow-lg shadow-[#F4735C]/30 transition-colors hover:bg-[#E15F47]"
-              >
-                Mulai Buat Undangan
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Show>
-          </Suspense>
+                <Show when="signed-out">
+                  <Link
+                    href="/sign-up"
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#F4735C] px-7 text-sm font-medium text-white shadow-lg shadow-[#F4735C]/30 transition-colors hover:bg-[#E15F47]"
+                  >
+                    Mulai Buat Undangan
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                  <Link
+                    href="/sign-in"
+                    className="inline-flex h-12 items-center justify-center rounded-full border border-zinc-200 px-7 text-sm font-medium transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+                  >
+                    Saya sudah punya akun
+                  </Link>
+                </Show>
+                <Show when="signed-in">
+                  <Link
+                    href="/dashboard"
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#F4735C] px-7 text-sm font-medium text-white shadow-lg shadow-[#F4735C]/30 transition-colors hover:bg-[#E15F47]"
+                  >
+                    Mulai Buat Undangan
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Show>
+              </Suspense>
+            </div>
+
+            {/* Trust badge */}
+            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
+              <div className="flex -space-x-2.5" aria-hidden>
+                {[
+                  { initials: "A&S", bg: "from-[#F4735C] to-[#E8A94E]" },
+                  { initials: "R&D", bg: "from-[#1B2A4A] to-[#3B4F7A]" },
+                  { initials: "Y&A", bg: "from-[#C98A94] to-[#7D8B7A]" },
+                  { initials: "B&L", bg: "from-[#C9A227] to-[#8A5A2B]" },
+                  { initials: "M&N", bg: "from-[#0B3B36] to-[#3F6B63]" },
+                ].map((a) => (
+                  <span
+                    key={a.initials}
+                    className={`inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br text-[10px] font-bold text-white ring-2 ring-white ${a.bg} dark:ring-black`}
+                  >
+                    {a.initials}
+                  </span>
+                ))}
+              </div>
+              <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                ⭐ 4.9/5 dari 1,000+ Pasangan Bahagia
+              </p>
+            </div>
+          </div>
+
+          {/* Mockup HP: preview undangan asli */}
+          <div className="relative mx-auto w-full max-w-[290px]">
+            <div
+              aria-hidden
+              className="absolute -inset-6 rounded-[3rem] bg-gradient-to-br from-[#F4735C]/25 via-[#E8A94E]/15 to-transparent blur-2xl"
+            />
+            <div className="relative overflow-hidden rounded-[2.5rem] border-[8px] border-zinc-900 bg-zinc-900 shadow-2xl dark:border-zinc-700">
+              <div className="relative h-[540px] overflow-hidden bg-white">
+                <div aria-hidden className="pointer-events-none absolute inset-0" inert>
+                  <InvitationTemplate
+                    title="Demo"
+                    templateType="blossom"
+                    content={DEMO_INVITATION}
+                    guestName="Tamu Undangan"
+                    rsvpSlot={null}
+                  />
+                </div>
+              </div>
+            </div>
+            {/* Chip melayang */}
+            <div className="absolute top-16 -right-4 flex items-center gap-1.5 rounded-2xl border border-zinc-200 bg-white/95 px-3 py-2 text-[11px] font-semibold shadow-xl backdrop-blur sm:-right-10 dark:border-zinc-700 dark:bg-zinc-900/95">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-white">
+                <Check className="h-3 w-3" />
+              </span>
+              RSVP Terkirim
+            </div>
+            <div className="absolute bottom-20 -left-4 flex items-center gap-1.5 rounded-2xl border border-zinc-200 bg-white/95 px-3 py-2 text-[11px] font-semibold shadow-xl backdrop-blur sm:-left-10 dark:border-zinc-700 dark:bg-zinc-900/95">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#F4735C] text-white">
+                <MapPin className="h-3 w-3" />
+              </span>
+              Maps Terpasang
+            </div>
+          </div>
         </div>
 
         {/* Showcase template */}
