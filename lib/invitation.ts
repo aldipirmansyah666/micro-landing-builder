@@ -4,6 +4,19 @@ export interface GiftAccount {
   holder: string;
 }
 
+/** Satu entri cerita pasangan (timeline "Cerita & Sapaan"). */
+export interface StoryEntry {
+  title: string;
+  text: string;
+}
+
+/** Batas validasi Content Enhancement v1 — dipakai client & server. */
+export const MAX_GREETING_LEN = 1000;
+export const MAX_CLOSING_NOTE_LEN = 1000;
+export const MAX_STORIES = 5;
+export const MAX_STORY_TITLE_LEN = 80;
+export const MAX_STORY_TEXT_LEN = 1000;
+
 export interface InvitationContent {
   quote: string;
   groomFullName: string;
@@ -24,6 +37,21 @@ export interface InvitationContent {
   galleryImages: string[];
   backsoundUrl: string;
   accounts: GiftAccount[];
+  /**
+   * Sapaan pembuka kustom. `undefined` = data lama → pakai salam bawaan
+   * template; string kosong = pengguna sengaja menyembunyikan salam.
+   */
+  greeting?: string;
+  /**
+   * Pesan penutup kustom. `undefined` = data lama → footer bawaan
+   * template; string kosong = sembunyikan baris penutup.
+   */
+  closingNote?: string;
+  /**
+   * Cerita pasangan opsional (maksimal MAX_STORIES). `undefined`/kosong
+   * = section tidak ditampilkan; hanya dirender template flagship.
+   */
+  stories?: StoryEntry[];
 }
 
 /** Id template lawas — tetap dirender demi kompatibilitas data lama. */
@@ -159,10 +187,34 @@ export const EMPTY_INVITATION: InvitationContent = {
   galleryImages: [],
   backsoundUrl: "",
   accounts: [],
+  greeting: undefined,
+  closingNote: undefined,
+  stories: undefined,
 };
 
 function str(v: unknown): string {
   return typeof v === "string" ? v : "";
+}
+
+/**
+ * String opsional yang membedakan "tidak ada di data lama" (undefined)
+ * dari "sengaja dikosongkan" (""). Non-string → undefined.
+ */
+function optStr(v: unknown): string | undefined {
+  return typeof v === "string" ? v : undefined;
+}
+
+/** Normalisasi daftar cerita: entri non-objek dibuang, string dikoerse. */
+function toStories(v: unknown): StoryEntry[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const entries = v
+    .filter(
+      (e): e is Record<string, unknown> =>
+        !!e && typeof e === "object" && !Array.isArray(e)
+    )
+    .map((e) => ({ title: str(e.title), text: str(e.text) }))
+    .filter((e) => e.title || e.text);
+  return entries.length > 0 ? entries : undefined;
 }
 
 /**
@@ -248,7 +300,22 @@ export function toInvitationContent(raw: unknown): InvitationContent {
     galleryImages: gallery,
     backsoundUrl: str(c.backsoundUrl),
     accounts,
+    greeting: optStr(c.greeting),
+    closingNote: optStr(c.closingNote),
+    stories: toStories(c.stories),
   };
+}
+
+/**
+ * Pilih teks sapaan untuk template: nilai kustom (termasuk string kosong
+ * yang berarti "sembunyikan") menang atas salam bawaan template;
+ * `undefined` (data lama) memakai fallback bawaan template.
+ */
+export function resolveGreeting(
+  custom: string | undefined,
+  fallback: string
+): string {
+  return custom !== undefined ? custom : fallback;
 }
 
 export function coupleNames(content: InvitationContent): string {

@@ -1,8 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
-import { eventTimestamp, type InvitationContent } from "@/lib/invitation";
-import { useCountdown } from "./shared";
+import { eventTimestamp, type InvitationContent, type StoryEntry } from "@/lib/invitation";
+import { Reveal, useCountdown } from "./shared";
 
 /**
  * State bersama seluruh template katalog baru: cover, audio backsound
@@ -248,5 +248,51 @@ export function BotanicalSprig({ className }: { className?: string }) {
       <path d="M30 36 C36 32 40 27 42 20 C36 21 32 26 30 36" />
       <circle cx="30" cy="8" r="2.5" fill="currentColor" stroke="none" />
     </svg>
+  );
+}
+
+/**
+ * Timeline "Cerita Pasangan" — dipakai HANYA template flagship
+ * (Aruna, Blossom Sage, Mahardika). Gaya visual diwariskan lewat
+ * className agar tiap template tetap khas. Daftar kosong → null
+ * (section tidak tampil). Teks user dirender sebagai teks polos
+ * (React escape otomatis — tanpa HTML mentah).
+ */
+export function StoryTimeline({
+  stories,
+  heading,
+  sectionClass,
+  headingClass,
+  itemClass,
+  marker,
+  titleClass,
+  textClass,
+}: {
+  stories: StoryEntry[] | undefined;
+  heading: string;
+  sectionClass: string;
+  headingClass: string;
+  itemClass: string;
+  marker: React.ReactNode;
+  titleClass: string;
+  textClass: string;
+}) {
+  const visible = (stories ?? []).filter((s) => s.title || s.text);
+  if (visible.length === 0) return null;
+  return (
+    <Reveal>
+      <div className={sectionClass}>
+        <p className={headingClass}>{heading}</p>
+        <div className="mt-6 space-y-5">
+          {visible.map((s, i) => (
+            <div key={i} className={itemClass}>
+              {marker}
+              <p className={titleClass}>{s.title || `Cerita ${i + 1}`}</p>
+              {s.text && <p className={textClass}>{s.text}</p>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </Reveal>
   );
 }

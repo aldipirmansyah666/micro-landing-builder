@@ -1,7 +1,7 @@
 "use client";
 
 import { CalendarDays, Gift, Images, MapPin } from "lucide-react";
-import { coupleNames, formatDateLong } from "@/lib/invitation";
+import { coupleNames, formatDateLong, resolveGreeting } from "@/lib/invitation";
 import {
   CoverOverlay,
   CopyRekeningButton,
@@ -14,6 +14,7 @@ import {
   CountdownUnits,
   coupleEntries,
   eventEntries,
+  StoryTimeline,
   useInvitationState,
 } from "./parts";
 import type { TemplateProps } from "./types";
@@ -28,6 +29,9 @@ export function ArunaTemplate({ title, content, guestName, rsvpSlot, defaultOpen
   const guest = guestName?.trim() || "Tamu Undangan";
   const names = coupleNames(content);
   const eventDate = content.akadDate || content.receptionDate;
+  // Sapaan kustom menang atas bawaan; "" = sembunyikan; undefined (data
+  // lama) = salam bawaan template.
+  const greeting = resolveGreeting(content.greeting, "Assalamu'alaikum Wr. Wb.");
 
   return (
     <div className="relative min-h-full bg-[#faf7f0] font-serif text-[#3d3a34] antialiased">
@@ -95,9 +99,11 @@ export function ArunaTemplate({ title, content, guestName, rsvpSlot, defaultOpen
         )}
 
         <Reveal>
-          <p className="mt-12 text-center text-[11px] tracking-[0.4em] text-[#9a8a5f] uppercase">
-            Assalamu&apos;alaikum Wr. Wb.
-          </p>
+          {greeting && (
+            <p className="mt-12 text-center text-[11px] tracking-[0.4em] text-[#9a8a5f] uppercase">
+              {greeting}
+            </p>
+          )}
           <div className="mt-6 space-y-8">
             {coupleEntries(content)
               .filter((p) => p.nick || p.parents)
@@ -116,6 +122,17 @@ export function ArunaTemplate({ title, content, guestName, rsvpSlot, defaultOpen
               ))}
           </div>
         </Reveal>
+
+        <StoryTimeline
+          stories={content.stories}
+          heading="Cerita Kami"
+          sectionClass="mt-12 border-t border-[#c9a96a]/40 pt-8 text-center"
+          headingClass="text-[11px] tracking-[0.4em] text-[#9a8a5f] uppercase"
+          itemClass="mx-auto max-w-sm"
+          marker={<span aria-hidden className="text-[#c9a96a]">✦</span>}
+          titleClass="mt-1 text-xl font-medium text-[#2e2b26]"
+          textClass="mx-auto mt-2 max-w-sm font-sans text-sm leading-7 text-[#5c574c]"
+        />
 
         <Reveal>
           <div className="mt-12 border-t border-[#c9a96a]/40 pt-8 text-center">
@@ -226,9 +243,17 @@ export function ArunaTemplate({ title, content, guestName, rsvpSlot, defaultOpen
           </div>
         </Reveal>
 
-        <p className="mt-12 text-center text-sm text-[#8a8474]">
-          Terima kasih atas doa & kehadiran Anda
-        </p>
+        {content.closingNote !== undefined ? (
+          content.closingNote ? (
+            <p className="mt-12 text-center text-sm text-[#8a8474]">
+              {content.closingNote}
+            </p>
+          ) : null
+        ) : (
+          <p className="mt-12 text-center text-sm text-[#8a8474]">
+            Terima kasih atas doa & kehadiran Anda
+          </p>
+        )}
         <p className="mt-2 text-center text-xs tracking-[0.3em] text-[#9a8a5f] uppercase">
           {names}
         </p>

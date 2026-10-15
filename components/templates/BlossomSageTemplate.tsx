@@ -15,6 +15,7 @@ import {
   CountdownUnits,
   coupleEntries,
   eventEntries,
+  StoryTimeline,
   useInvitationState,
 } from "./parts";
 import type { TemplateProps } from "./types";
@@ -95,6 +96,16 @@ export function BlossomSageTemplate({ title, content, guestName, rsvpSlot, defau
           </Reveal>
         )}
 
+        {/* Blossom tidak punya slot salam bawaan: baris sapaan hanya
+            muncul bila pengguna mengisi kustom (data lama tak berubah). */}
+        {content.greeting ? (
+          <Reveal>
+            <p className="mx-auto mt-10 max-w-sm text-center font-serif text-xl leading-9 text-[#6a7a6c] italic">
+              {content.greeting}
+            </p>
+          </Reveal>
+        ) : null}
+
         <Reveal>
           <div className="mt-12 space-y-4">
             {coupleEntries(content)
@@ -108,6 +119,17 @@ export function BlossomSageTemplate({ title, content, guestName, rsvpSlot, defau
               ))}
           </div>
         </Reveal>
+
+        <StoryTimeline
+          stories={content.stories}
+          heading="Cerita Cinta Kami"
+          sectionClass="mt-8 text-center"
+          headingClass="font-serif text-2xl text-[#c98a94] italic"
+          itemClass="mx-auto max-w-sm rounded-[2.5rem] bg-white px-6 py-6 shadow-sm"
+          marker={<span aria-hidden className="text-[#c98a94]">❀</span>}
+          titleClass="mt-1 font-serif text-xl text-[#3f4a41] italic"
+          textClass="mt-2 font-sans text-sm leading-7 text-[#6a7a6c]"
+        />
 
         <Reveal>
           <div className="mt-8 rounded-[2.5rem] bg-[#7d8b7a] px-6 py-8 text-center text-white">
@@ -188,7 +210,17 @@ export function BlossomSageTemplate({ title, content, guestName, rsvpSlot, defau
           </div>
         </Reveal>
 
-        <p className="mt-12 text-center font-serif text-lg text-[#6a7a6c] italic">Terima kasih atas doa & kehadiran Anda</p>
+        {content.closingNote !== undefined ? (
+          content.closingNote ? (
+            <p className="mt-12 text-center font-serif text-lg text-[#6a7a6c] italic">
+              {content.closingNote}
+            </p>
+          ) : null
+        ) : (
+          <p className="mt-12 text-center font-serif text-lg text-[#6a7a6c] italic">
+            Terima kasih atas doa & kehadiran Anda
+          </p>
+        )}
         <p className="mt-2 text-center text-xs tracking-[0.3em] text-[#c98a94] uppercase">{names}</p>
       </div>
     </div>

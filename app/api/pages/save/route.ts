@@ -12,6 +12,11 @@ import { checkSaveEntitlements, hasProAccess } from "@/lib/entitlements";
 import {
   ALL_TEMPLATE_IDS,
   LEGACY_TEMPLATE_ALIASES,
+  MAX_CLOSING_NOTE_LEN,
+  MAX_GREETING_LEN,
+  MAX_STORIES,
+  MAX_STORY_TEXT_LEN,
+  MAX_STORY_TITLE_LEN,
   resolveTemplate,
   toInvitationContent,
 } from "@/lib/invitation";
@@ -64,6 +69,7 @@ function isHttpUrl(value: string): boolean {
 
 /** Kembalikan pesan error bila ada URL berbahaya di content, null bila aman. */
 function validateContentUrls(content: Record<string, unknown>): string | null {
+
   for (const key of URL_KEYS) {
     const v = content[key];
     if (typeof v === "string" && v.trim() !== "" && !isHttpUrl(v.trim())) {
@@ -83,6 +89,42 @@ function validateContentUrls(content: Record<string, unknown>): string | null {
   const gallery = content.galleryImages ?? content.galleryUrls;
   if (Array.isArray(gallery) && gallery.length > MAX_GALLERY_IMAGES) {
     return `Maksimal ${MAX_GALLERY_IMAGES} foto galeri`;
+  }
+  return null;
+}
+
+/**
+ * Batas Content Enhancement v1 (sapaan, penutup, cerita). Key absen =
+ * data lama (lolos); key ada tapi melampaui batas = 400 dengan pesan jelas.
+ */
+function validateContentLimits(content: Record<string, unknown>): string | null {
+  const greeting = content.greeting;
+  if (greeting !== undefined && (typeof greeting !== "string" || greeting.length > MAX_GREETING_LEN)) {
+    return `Sapaan pembuka maksimal ${MAX_GREETING_LEN} karakter`;
+  }
+  const closingNote = content.closingNote;
+  if (closingNote !== undefined && (typeof closingNote !== "string" || closingNote.length > MAX_CLOSING_NOTE_LEN)) {
+    return `Pesan penutup maksimal ${MAX_CLOSING_NOTE_LEN} karakter`;
+  }
+  const stories = content.stories;
+  if (stories === undefined) return null;
+  if (!Array.isArray(stories)) return "Cerita harus berupa daftar";
+  if (stories.length > MAX_STORIES) return `Maksimal ${MAX_STORIES} cerita`;
+  for (let i = 0; i < stories.length; i++) {
+    const e = stories[i];
+    if (!e || typeof e !== "object" || Array.isArray(e)) {
+      return `Cerita ke-${i + 1} tidak valid`;
+    }
+    const { title, text } = e as Record<string, unknown>;
+    if (typeof title !== "string" || typeof text !== "string") {
+      return `Cerita ke-${i + 1} harus punya judul dan isi teks`;
+    }
+    if (title.length > MAX_STORY_TITLE_LEN) {
+      return `Judul cerita ke-${i + 1} maksimal ${MAX_STORY_TITLE_LEN} karakter`;
+    }
+    if (text.length > MAX_STORY_TEXT_LEN) {
+      return `Isi cerita ke-${i + 1} maksimal ${MAX_STORY_TEXT_LEN} karakter`;
+    }
   }
   return null;
 }
@@ -148,6 +190,10 @@ export async function POST(req: Request) {
   const urlError = validateContentUrls(contentJson);
   if (urlError) {
     return NextResponse.json({ error: urlError }, { status: 400 });
+  }
+  const contentError = validateContentLimits(contentJson);
+  if (contentError) {
+    return NextResponse.json({ error: contentError }, { status: 400 });
   }
 
   // Pastikan baris user ada (FK landing_pages.user_id -> users.clerk_id)

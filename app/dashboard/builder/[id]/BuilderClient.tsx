@@ -5,7 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   AlertCircle,
+  ArrowDown,
   ArrowLeft,
+  ArrowUp,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -32,11 +34,17 @@ import {
   type Plan,
 } from "@/lib/entitlements";
 import {
+  MAX_CLOSING_NOTE_LEN,
+  MAX_GREETING_LEN,
+  MAX_STORIES,
+  MAX_STORY_TEXT_LEN,
+  MAX_STORY_TITLE_LEN,
   resolveTemplate,
   slugify,
   toInvitationContent,
   type GiftAccount,
   type InvitationContent,
+  type StoryEntry,
 } from "@/lib/invitation";
 import { InvitationTemplate } from "@/components/templates/InvitationTemplate";
 import { CompactTemplateSelector } from "@/components/templates/TemplateCatalog";
@@ -383,6 +391,33 @@ export function BuilderClient({
     }));
   }
 
+  const stories = content.stories ?? [];
+
+  function updateStory(idx: number, p: Partial<StoryEntry>) {
+    setContent((c) => ({
+      ...c,
+      stories: (c.stories ?? []).map((s, i) => (i === idx ? { ...s, ...p } : s)),
+    }));
+  }
+
+  function moveStory(idx: number, dir: -1 | 1) {
+    setContent((c) => {
+      const list = [...(c.stories ?? [])];
+      const j = idx + dir;
+      if (j < 0 || j >= list.length) return c;
+      const [s] = list.splice(idx, 1);
+      list.splice(j, 0, s!);
+      return { ...c, stories: list };
+    });
+  }
+
+  function removeStory(idx: number) {
+    setContent((c) => ({
+      ...c,
+      stories: (c.stories ?? []).filter((_, i) => i !== idx),
+    }));
+  }
+
   const isPro = plan === "pro";
   const galleryLimit = maxGallery(plan);
   // Real-Time Multi-Template Preview:
@@ -602,6 +637,118 @@ export function BuilderClient({
                 className={`${inputClass} resize-none`}
               />
             </Field>
+          </Accordion>
+
+          <Accordion title="💌 Cerita & Sapaan">
+            <Field label={`Sapaan Pembuka (${(content.greeting ?? "").length}/${MAX_GREETING_LEN})`}>
+              <textarea
+                value={content.greeting ?? ""}
+                onChange={(e) => patch({ greeting: e.target.value.slice(0, MAX_GREETING_LEN) })}
+                rows={2}
+                maxLength={MAX_GREETING_LEN}
+                placeholder="cth: Assalamu'alaikum Wr. Wb. — Dengan penuh syukur kami mengundang…"
+                className={`${inputClass} resize-none`}
+              />
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                Menggantikan salam bawaan template. Kosongkan untuk
+                menyembunyikan; undangan lama tanpa isian tetap memakai salam
+                bawaan.
+              </p>
+            </Field>
+            <Field label={`Pesan Penutup (${(content.closingNote ?? "").length}/${MAX_CLOSING_NOTE_LEN})`}>
+              <textarea
+                value={content.closingNote ?? ""}
+                onChange={(e) => patch({ closingNote: e.target.value.slice(0, MAX_CLOSING_NOTE_LEN) })}
+                rows={2}
+                maxLength={MAX_CLOSING_NOTE_LEN}
+                placeholder="cth: Terima kasih atas doa & kehadiran Anda…"
+                className={`${inputClass} resize-none`}
+              />
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                Menggantikan ucapan terima kasih bawaan template. Kosongkan
+                untuk menyembunyikan.
+              </p>
+            </Field>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">
+                Cerita Pasangan ({stories.length}/{MAX_STORIES})
+              </p>
+              <button
+                type="button"
+                disabled={stories.length >= MAX_STORIES}
+                onClick={() =>
+                  setContent((c) => ({
+                    ...c,
+                    stories: [...(c.stories ?? []), { title: "", text: "" }],
+                  }))
+                }
+                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-zinc-200 px-4 text-xs font-medium transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Tambah Cerita
+              </button>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Tampil sebagai timeline hanya pada template Aruna, Blossom Sage,
+              dan Mahardika. Cerita kosong tidak ditampilkan.
+            </p>
+            {stories.map((s, i) => (
+              <div
+                key={i}
+                className="space-y-3 rounded-xl bg-zinc-50 p-3 dark:bg-zinc-900"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium">Cerita {i + 1}</p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={i === 0}
+                      onClick={() => moveStory(i, -1)}
+                      aria-label={`Pindah cerita ${i + 1} ke atas`}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-zinc-200 disabled:opacity-40 dark:hover:bg-zinc-800"
+                    >
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={i === stories.length - 1}
+                      onClick={() => moveStory(i, 1)}
+                      aria-label={`Pindah cerita ${i + 1} ke bawah`}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-zinc-200 disabled:opacity-40 dark:hover:bg-zinc-800"
+                    >
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeStory(i)}
+                      aria-label={`Hapus cerita ${i + 1}`}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-full text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+                <Field label={`Judul (${s.title.length}/${MAX_STORY_TITLE_LEN})`}>
+                  <input
+                    value={s.title}
+                    onChange={(e) => updateStory(i, { title: e.target.value.slice(0, MAX_STORY_TITLE_LEN) })}
+                    maxLength={MAX_STORY_TITLE_LEN}
+                    placeholder="cth: Awal Bertemu — 2019"
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label={`Isi Cerita (${s.text.length}/${MAX_STORY_TEXT_LEN})`}>
+                  <textarea
+                    value={s.text}
+                    onChange={(e) => updateStory(i, { text: e.target.value.slice(0, MAX_STORY_TEXT_LEN) })}
+                    rows={3}
+                    maxLength={MAX_STORY_TEXT_LEN}
+                    placeholder="Tulis momen berkesan secara singkat…"
+                    className={`${inputClass} resize-none`}
+                  />
+                </Field>
+              </div>
+            ))}
           </Accordion>
 
           <Accordion title="💍 Profil Mempelai Pria & Wanita">
@@ -934,6 +1081,10 @@ export function BuilderClient({
           </Accordion>
 
           <Accordion title="💌 Fitur Sebar Undangan (Nama Tamu)">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Nama di sini hanya untuk membuat link — tidak tersimpan ke
+              undangan. Kelola daftar tamu permanen di menu Tamu & RSVP.
+            </p>
             <Field label="Nama Tamu">
               <input
                 value={shareGuest}
@@ -992,11 +1143,12 @@ export function BuilderClient({
         <section className="lg:sticky lg:top-24 lg:self-start">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="text-sm font-semibold tracking-tight">Live Preview</h2>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" title="Nama pratinjau hanya tampil di preview ini dan tidak tersimpan">
               <input
                 value={previewGuest}
                 onChange={(e) => setPreviewGuest(e.target.value)}
                 placeholder="Pratinjau sbg tamu..."
+                aria-label="Pratinjau sebagai tamu (tidak tersimpan)"
                 className="h-8 w-44 rounded-full border border-zinc-200 bg-white px-3 text-xs outline-none placeholder:text-zinc-400 focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-400"
               />
               <button

@@ -1,7 +1,7 @@
 "use client";
 
 import { Gift, Images, MapPin, Navigation } from "lucide-react";
-import { coupleNames, formatDateLong } from "@/lib/invitation";
+import { coupleNames, formatDateLong, resolveGreeting } from "@/lib/invitation";
 import {
   CoverOverlay,
   CopyRekeningButton,
@@ -14,6 +14,7 @@ import {
   coupleEntries,
   coupleInitials,
   eventEntries,
+  StoryTimeline,
   useInvitationState,
 } from "./parts";
 import type { TemplateProps } from "./types";
@@ -27,6 +28,7 @@ export function MahardikaTemplate({ title, content, guestName, rsvpSlot, default
     useInvitationState(content, defaultOpened);
   const guest = guestName?.trim() || "Tamu Undangan";
   const names = coupleNames(content);
+  const greeting = resolveGreeting(content.greeting, "Assalamu'alaikum Wr. Wb.");
 
   return (
     <div className="relative min-h-full bg-[#0c2b23] font-serif text-[#f5efe0] antialiased">
@@ -63,9 +65,11 @@ export function MahardikaTemplate({ title, content, guestName, rsvpSlot, default
                 {coupleInitials(content)}
               </span>
             </div>
-            <p className="mt-5 text-[11px] tracking-[0.45em] text-[#c9a96a] uppercase">
-              Assalamu&apos;alaikum Wr. Wb.
-            </p>
+            {greeting && (
+              <p className="mt-5 text-[11px] tracking-[0.45em] text-[#c9a96a] uppercase">
+                {greeting}
+              </p>
+            )}
             {content.quote && (
               <p className="mx-auto mt-4 max-w-sm text-sm leading-7 text-[#f5efe0]/75 italic">
                 &ldquo;{content.quote}&rdquo;
@@ -119,6 +123,17 @@ export function MahardikaTemplate({ title, content, guestName, rsvpSlot, default
               ))}
           </div>
         </Reveal>
+
+        <StoryTimeline
+          stories={content.stories}
+          heading="Kisah Kami"
+          sectionClass="mt-10 border-y border-[#c9a96a]/40 py-8 text-center"
+          headingClass="text-[11px] tracking-[0.4em] text-[#c9a96a] uppercase"
+          itemClass="mx-auto max-w-xs"
+          marker={<span aria-hidden className="text-[10px] tracking-[0.5em] text-[#c9a96a]">◆ ◆ ◆</span>}
+          titleClass="mt-2 text-xl font-semibold text-[#f2e7c9]"
+          textClass="mt-2 font-sans text-sm leading-7 text-[#f5efe0]/70"
+        />
 
         <Reveal>
           <div className="mt-10 text-center">
@@ -237,7 +252,9 @@ export function MahardikaTemplate({ title, content, guestName, rsvpSlot, default
           <div className="h-px bg-[#c9a96a]/60" />
         </div>
         <p className="mt-4 text-center font-sans text-xs text-[#f5efe0]/60">
-          {names} — Terima kasih
+          {content.closingNote !== undefined
+            ? content.closingNote || names
+            : `${names} — Terima kasih`}
         </p>
       </div>
     </div>
