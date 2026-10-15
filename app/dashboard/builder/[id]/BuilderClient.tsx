@@ -2,17 +2,21 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   AlertCircle,
   ArrowLeft,
+  Check,
   CheckCircle2,
   ChevronDown,
+  Copy,
   Crown,
   ExternalLink,
   Eye,
   EyeOff,
   ImagePlus,
   Loader2,
+  MessageCircle,
   Minus,
   Music,
   Plus,
@@ -39,6 +43,7 @@ import { CompactTemplateSelector } from "@/components/templates/TemplateCatalog"
 import { SafeImg } from "@/components/templates/shared";
 import { UpgradeProButton } from "@/components/billing/UpgradeProModal";
 import { TEMPLATE_REGISTRY, templateLabel } from "@/lib/templates";
+import { copyText, waShareText } from "@/app/dashboard/QuickActions";
 
 const inputClass =
   "w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-400";
@@ -188,19 +193,23 @@ export function TemplatePreviewDropdown({
           value={value}
           onChange={(e) => onSelect(e.target.value)}
           aria-label="Pilih template untuk preview"
-          className="w-full appearance-none truncate bg-transparent pr-6 text-xs font-semibold outline-none"
+          className="w-full appearance-none truncate rounded-lg border border-stone-700 bg-stone-900 px-3 py-1.5 pr-8 text-xs font-semibold text-stone-100 outline-none [color-scheme:dark] focus:ring-2 focus:ring-amber-500 focus:outline-none"
         >
           {TEMPLATE_REGISTRY.map((t) => {
             const needsPro = !isPro && t.id !== FREE_TEMPLATE_ID;
             return (
-              <option key={t.id} value={t.id}>
+              <option
+                key={t.id}
+                value={t.id}
+                className="bg-stone-900 py-1 text-stone-100 dark:bg-stone-900 dark:text-stone-100"
+              >
                 {t.name}
                 {needsPro ? " • PRO" : ""}
               </option>
             );
           })}
         </select>
-        <ChevronDown className="pointer-events-none absolute top-1/2 right-0 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500" />
+        <ChevronDown className="pointer-events-none absolute top-1/2 right-2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
       </span>
     </label>
   );
@@ -311,6 +320,8 @@ export function BuilderClient({
     initial?.slug ?? null
   );
   const [previewGuest, setPreviewGuest] = useState("");
+  const [shareGuest, setShareGuest] = useState("");
+  const [shareCopied, setShareCopied] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
   // Preview langsung menampilkan isi (cover terbuka) agar foto cover
   // langsung kelihatan; matikan untuk memeriksa tampilan cover tertutup.
@@ -396,6 +407,35 @@ export function BuilderClient({
     }
   }
 
+  // Link sebar personal: pakai slug tersimpan bila ada, fallback slug draft.
+  const shareSlug = savedSlug ?? slug.trim();
+  const shareLink =
+    typeof window !== "undefined" && shareSlug
+      ? `${window.location.origin}/p/${shareSlug}?to=${encodeURIComponent(shareGuest.trim())}`
+      : "";
+
+  async function handleCopyShareLink() {
+    if (!shareLink) return;
+    const ok = await copyText(shareLink);
+    if (!ok) return;
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2000);
+  }
+
+  function handleShareWhatsApp() {
+    if (!shareSlug) return;
+    const text = waShareText(
+      shareSlug,
+      title.trim() || "Undangan Digital",
+      shareGuest.trim() || undefined
+    );
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(text)}`,
+      "_blank",
+      "noopener"
+    );
+  }
+
   async function handleSave() {
     setSaving(true);
     setMessage(null);
@@ -451,6 +491,22 @@ export function BuilderClient({
               aria-label="Kembali ke dashboard"
             >
               <ArrowLeft className="h-4 w-4" />
+            </Link>
+            <Link href="/" aria-label="NikahYuk — beranda">
+              <Image
+                src="/logo-nikahyuk.svg"
+                alt="NikahYuk"
+                width={180}
+                height={30}
+                className="h-7 w-auto dark:hidden"
+              />
+              <Image
+                src="/logo-nikahyuk-light.svg"
+                alt="NikahYuk"
+                width={180}
+                height={30}
+                className="hidden h-7 w-auto dark:block"
+              />
             </Link>
             <h1 className="text-base font-semibold tracking-tight">
               {mode === "new" ? "Buat Undangan Digital" : "Edit Undangan Digital"}
@@ -875,6 +931,60 @@ export function BuilderClient({
               <Plus className="h-4 w-4" />
               Tambah Rekening
             </button>
+          </Accordion>
+
+          <Accordion title="💌 Fitur Sebar Undangan (Nama Tamu)">
+            <Field label="Nama Tamu">
+              <input
+                value={shareGuest}
+                onChange={(e) => setShareGuest(e.target.value)}
+                placeholder="cth: Budi"
+                className={inputClass}
+              />
+            </Field>
+            {!shareSlug ? (
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                Isi slug lalu simpan undangan dulu agar link sebar bisa dibuat.
+              </p>
+            ) : !shareGuest.trim() ? (
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Ketik nama tamu untuk membuat link personal
+                <span className="font-mono"> ?to=NamaTamu</span>.
+              </p>
+            ) : (
+              <>
+                <Field label="Link Personal Tamu">
+                  <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 font-mono text-xs break-all dark:border-zinc-700 dark:bg-zinc-900">
+                    {shareLink}
+                  </p>
+                </Field>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => void handleCopyShareLink()}
+                    className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-full border border-zinc-200 px-4 text-sm font-medium transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+                  >
+                    {shareCopied ? (
+                      <>
+                        <Check className="h-4 w-4 text-green-600" /> Disalin!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4" /> Salin Link
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleShareWhatsApp}
+                    className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-full bg-[#25D366] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#1fb857]"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    Bagikan ke WhatsApp
+                  </button>
+                </div>
+              </>
+            )}
           </Accordion>
         </section>
 

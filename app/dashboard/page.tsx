@@ -17,9 +17,11 @@ import {
   getLandingPagesByUserId,
   getUserRole,
   upsertUser,
+  getDashboardStats,
   type LandingPage,
 } from "@/lib/db";
 import { DeleteLandingPageButton } from "./DeleteButton";
+import { CopyWaLinkButton, ExportGuestsButton } from "./QuickActions";
 import { UpgradeProButton } from "@/components/billing/UpgradeProModal";
 import { hasProAccess } from "@/lib/entitlements";
 import { templateLabel } from "@/lib/templates";
@@ -104,7 +106,11 @@ function LandingPageCard({
           <Users className="h-3.5 w-3.5" />
           Tamu & RSVP
         </Link>
+        <ExportGuestsButton slug={page.slug} />
         {!showAsPro && <UpgradeProButton slug={page.slug} />}
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <CopyWaLinkButton slug={page.slug} title={page.title} />
       </div>
     </article>
   );
@@ -124,6 +130,9 @@ export default async function DashboardPage() {
   const pages = await getLandingPagesByUserId(userId);
   const role = await getUserRole(userId);
   const isUserAdmin = role === "admin";
+  const stats = await getDashboardStats(userId);
+  const accountPro =
+    isUserAdmin || pages.some((p) => p.is_pro);
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 font-sans text-zinc-900 dark:bg-black dark:text-zinc-50">
@@ -192,6 +201,46 @@ export default async function DashboardPage() {
             Buat Undangan Baru
           </Link>
         </div>
+
+        {/* Widget analitik ringkas */}
+        <section
+          aria-label="Ringkasan analitik"
+          className="mt-6 grid grid-cols-3 gap-3"
+        >
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-center dark:border-zinc-800 dark:bg-zinc-950">
+            <p className="text-xl" aria-hidden>
+              👁️
+            </p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">
+              {stats.views}
+            </p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Total Kunjungan
+            </p>
+          </div>
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-center dark:border-zinc-800 dark:bg-zinc-950">
+            <p className="text-xl" aria-hidden>
+              💌
+            </p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">
+              {stats.wishes}
+            </p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Ucapan & RSVP
+            </p>
+          </div>
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-center dark:border-zinc-800 dark:bg-zinc-950">
+            <p className="text-xl" aria-hidden>
+              👑
+            </p>
+            <p className="mt-1 text-2xl font-semibold">
+              {accountPro ? "Pro" : "Free"}
+            </p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Status Akun
+            </p>
+          </div>
+        </section>
 
         {pages.length === 0 ? (
           <div className="mt-10 flex flex-col items-center rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-16 text-center dark:border-zinc-700 dark:bg-zinc-950">

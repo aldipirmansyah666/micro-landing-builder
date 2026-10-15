@@ -634,3 +634,29 @@ export async function markGuestOpened(slug: string, name: string): Promise<void>
     WHERE page_slug = ${slug} AND LOWER(name) = LOWER(${name});
   `;
 }
+
+/**
+ * Analitik ringkas dashboard per user:
+ * - views: tamu yang tercatat membuka undangan (beacon ?to=) di semua halaman user.
+ * - wishes: total ucapan & RSVP masuk di semua halaman user.
+ */
+export async function getDashboardStats(
+  userId: string
+): Promise<{ views: number; wishes: number }> {
+  const viewRows = (await sql`
+    SELECT COUNT(*)::int AS count
+    FROM guests g
+    JOIN landing_pages lp ON lp.slug = g.page_slug
+    WHERE lp.user_id = ${userId} AND g.opened_at IS NOT NULL;
+  `) as { count: number }[];
+  const wishRows = (await sql`
+    SELECT COUNT(*)::int AS count
+    FROM wishes w
+    JOIN landing_pages lp ON lp.slug = w.page_slug
+    WHERE lp.user_id = ${userId};
+  `) as { count: number }[];
+  return {
+    views: viewRows[0]?.count ?? 0,
+    wishes: wishRows[0]?.count ?? 0,
+  };
+}
