@@ -56,17 +56,17 @@ export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-white font-sans text-zinc-900 dark:bg-black dark:text-zinc-50">
       {/* Navbar */}
-      <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-5">
-        <Link href="/" className="flex flex-col gap-1" aria-label="NikahYuk — beranda">
+      <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-stone-800/60 bg-stone-950/80 px-4 backdrop-blur-md md:px-8">
+        <Link href="/" className="flex min-w-0 flex-col justify-center" aria-label="NikahYuk — beranda">
           <Image
-            src="/logo-nikahyuk.svg"
+            src="/logo-nikahyuk-light.svg"
             alt="NikahYuk"
             width={360}
             height={60}
             priority
-            className="h-9 w-auto sm:h-10 dark:rounded-lg dark:bg-white dark:px-2 dark:py-1"
+            className="h-8 w-auto object-contain md:h-10"
           />
-          <span className="text-[11px] font-medium tracking-wide text-zinc-500 dark:text-zinc-400">
+          <span className="mt-0.5 hidden text-[10px] font-medium tracking-wide text-stone-400 sm:block">
             Undangan Online, Lebih Mudah
           </span>
         </Link>
@@ -84,7 +84,7 @@ export default function Home() {
             <Show when="signed-out">
               <Link
                 href="/sign-in"
-                className="rounded-full px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+                className="rounded-full px-4 py-2 text-sm font-medium text-stone-300 transition-colors hover:text-white"
               >
                 Masuk
               </Link>
@@ -213,16 +213,55 @@ export default function Home() {
               className="absolute -inset-6 rounded-[3rem] bg-gradient-to-br from-[#F4735C]/25 via-[#E8A94E]/15 to-transparent blur-2xl"
             />
             <div className="relative overflow-hidden rounded-[2.5rem] border-[8px] border-zinc-900 bg-zinc-900 shadow-2xl dark:border-zinc-700">
-              <div className="relative h-[540px] overflow-hidden bg-white">
-                <div aria-hidden className="pointer-events-none absolute inset-0" inert>
-                  <InvitationTemplate
-                    title="Demo"
-                    templateType="blossom"
-                    content={DEMO_INVITATION}
-                    guestName="Tamu Undangan"
-                    rsvpSlot={null}
-                  />
+              {/* Preview undangan statis (tanpa hook/observer) agar selalu
+                  tampil berwarna di dalam frame: arch foto + monogram,
+                  nama mempelai, tanggal, dan tombol Buka Undangan. */}
+              <div className="relative flex h-[540px] flex-col items-center overflow-hidden bg-[#faf7f0] px-6 py-5 text-center">
+                <div aria-hidden className="h-4 w-20 shrink-0 rounded-full bg-zinc-900" />
+                <p className="mt-4 text-[9px] font-medium tracking-[0.4em] text-[#9a8a5f] uppercase">
+                  The Wedding Of
+                </p>
+                <div className="mt-3 flex aspect-[3/4] w-36 shrink-0 items-center justify-center rounded-t-[6rem] rounded-b-2xl border border-[#c9a96a]/60 bg-gradient-to-b from-[#e9d6b6] via-[#f5ead2] to-[#c9a96a]/50 shadow-lg shadow-[#c9a96a]/30">
+                  <div>
+                    <Heart className="mx-auto h-5 w-5 fill-[#c9a96a] text-[#c9a96a]" />
+                    <p className="mt-1 font-serif text-3xl text-[#3d3a34]">
+                      Y & A
+                    </p>
+                    <p className="mt-1 text-[8px] tracking-[0.3em] text-[#9a8a5f] uppercase">
+                      12 . 12 . 2026
+                    </p>
+                  </div>
                 </div>
+                <p className="mt-3 font-serif text-2xl leading-snug text-[#2e2b26]">
+                  Yoga & Ayu
+                </p>
+                <p className="mt-1 rounded-full bg-[#3d3a34] px-3 py-1 text-[9px] font-medium tracking-[0.2em] text-[#faf7f0] uppercase">
+                  Sabtu, 12 Des 2026
+                </p>
+                <div className="mt-3 grid w-full grid-cols-4 gap-1.5" aria-hidden>
+                  {[
+                    ["12", "Hari"],
+                    ["08", "Jam"],
+                    ["45", "Mnt"],
+                    ["20", "Dtk"],
+                  ].map(([v, l]) => (
+                    <div
+                      key={l}
+                      className="rounded-xl border border-[#c9a96a]/50 bg-white/80 px-1 py-2"
+                    >
+                      <p className="text-sm font-semibold text-[#2e2b26] tabular-nums">
+                        {v}
+                      </p>
+                      <p className="text-[8px] tracking-widest text-[#9a8a5f] uppercase">
+                        {l}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <span className="mt-4 inline-flex h-10 items-center gap-1.5 rounded-full bg-[#F4735C] px-5 text-xs font-semibold text-white shadow-lg shadow-[#F4735C]/30">
+                  <Heart className="h-3.5 w-3.5 fill-white" />
+                  Buka Undangan
+                </span>
               </div>
             </div>
             {/* Chip melayang */}
@@ -353,7 +392,14 @@ export default function Home() {
             alt="NikahYuk"
             width={320}
             height={53}
-            className="h-8 w-auto sm:h-9 dark:rounded-lg dark:bg-white dark:px-2 dark:py-1"
+            className="h-8 w-auto object-contain sm:h-9 dark:hidden"
+          />
+          <Image
+            src="/logo-nikahyuk-light.svg"
+            alt="NikahYuk"
+            width={320}
+            height={53}
+            className="hidden h-8 w-auto object-contain sm:h-9 dark:block"
           />
           <p className="text-[11px] font-medium tracking-wide text-zinc-500 dark:text-zinc-400">
             Undangan Online, Lebih Mudah

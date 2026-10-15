@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { UserButton } from "@clerk/nextjs";
@@ -139,6 +140,22 @@ export default async function DashboardPage() {
             <h1 className="text-base font-semibold tracking-tight">
               Dashboard
             </h1>
+            <Link href="/" aria-label="NikahYuk — beranda">
+              <Image
+                src="/logo-nikahyuk.svg"
+                alt="NikahYuk"
+                width={200}
+                height={34}
+                className="h-7 w-auto dark:hidden"
+              />
+              <Image
+                src="/logo-nikahyuk-light.svg"
+                alt="NikahYuk"
+                width={200}
+                height={34}
+                className="hidden h-7 w-auto dark:block"
+              />
+            </Link>
           </div>
           <div className="flex items-center gap-2">
             {isUserAdmin && (
@@ -159,12 +176,12 @@ export default async function DashboardPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight">
-              Landing Page Saya
+              Kelola Undangan NikahYuk Kamu
             </h2>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
               {pages.length === 0
-                ? "Belum ada landing page. Buat yang pertama!"
-                : `${pages.length} landing page`}
+                ? "Belum ada undangan. Buat yang pertama!"
+                : `${pages.length} undangan`}
             </p>
           </div>
           <Link
@@ -172,7 +189,7 @@ export default async function DashboardPage() {
             className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
             <Plus className="h-4 w-4" />
-            Buat Landing Page Baru
+            Buat Undangan Baru
           </Link>
         </div>
 
@@ -182,18 +199,18 @@ export default async function DashboardPage() {
               <LayoutGrid className="h-6 w-6 text-zinc-500" />
             </span>
             <h3 className="mt-4 text-base font-semibold">
-              Mulai dari halaman kosong
+              Mulai dari undangan kosong
             </h3>
             <p className="mt-1 max-w-sm text-sm text-zinc-600 dark:text-zinc-400">
-              Buat landing page pertamamu dalam hitungan menit dan bagikan
-              tautannya ke siapa pun.
+              Buat undangan pertamamu dalam hitungan menit dan bagikan
+              tautannya ke tamu.
             </p>
             <Link
               href="/dashboard/builder/new"
               className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
             >
               <Plus className="h-4 w-4" />
-              Buat Landing Page Baru
+              Buat Undangan Baru
             </Link>
           </div>
         ) : (

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="120" viewBox="0 0 720 120" role="img" aria-labelledby="title desc">
+  <title id="title">NikahYuk</title>
+  <desc id="desc">Logo NikahYuk terang untuk latar gelap</desc>
+  <defs>
+    <linearGradient id="coralLight" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FF826B"/>
+      <stop offset="1" stop-color="#F45F4C"/>
+    </linearGradient>
+    <linearGradient id="goldLight" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F1C36A"/>
+      <stop offset="1" stop-color="#D99A35"/>
+    </linearGradient>
+  </defs>
+  <!-- Envelope mark -->
+  <g transform="translate(8 13)">
+    <rect x="7" y="32" width="82" height="62" rx="13" fill="url(#coralLight)"/>
+    <path d="M10 42 L48 69 Q48 70 50 69 L86 42" fill="none" stroke="#FFF9F4" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M36 51 C29 43 17 48 20 58 C22 65 36 74 36 74 C36 74 50 65 52 58 C55 48 43 43 36 51Z" fill="#FF826B" transform="translate(12 -16) scale(.72)"/>
+    <!-- Wedding rings -->
+    <circle cx="37" cy="24" r="15" fill="none" stroke="url(#goldLight)" stroke-width="5.5"/>
+    <circle cx="54" cy="24" r="15" fill="none" stroke="url(#goldLight)" stroke-width="5.5"/>
+    <path d="M8 45 L48 72 L88 45" fill="none" stroke="#FFF9F4" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M48 70 L48 70" stroke="#FFF9F4" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <!-- Wordmark: "Nikah" ivory agar terbaca di latar gelap, "Yuk" tetap coral -->
+  <text x="120" y="76" font-family="Poppins, Nunito, Arial, sans-serif" font-size="62" font-weight="800" letter-spacing="-2.4" fill="#FFF9F4">Nikah<tspan fill="#F56855">Yuk</tspan></text>
+</svg>

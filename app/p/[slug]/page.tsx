@@ -74,9 +74,9 @@ export default async function PublicLandingPage({
           <footer className="bg-white py-6 text-center text-xs text-zinc-500 dark:bg-black dark:text-zinc-500">
             Dibuat dengan{" "}
             <Link href="/" className="font-medium underline underline-offset-2">
-              Micro Landing Builder
+              NikahYuk
             </Link>{" "}
-            · Buat halamanmu gratis
+            · Buat undanganmu gratis
           </footer>
         )}
       </main>
