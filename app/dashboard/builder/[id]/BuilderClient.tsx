@@ -281,10 +281,13 @@ export function BuilderClient({
   mode,
   initial,
   plan,
+  initialTemplate,
 }: {
   mode: "new" | "edit";
   initial: LandingPage | null;
   plan: Plan;
+  /** Deep-link ?template= dari landing page (hanya dipakai mode "new"). */
+  initialTemplate?: string;
 }) {
   const seed = useMemo(
     () => toInvitationContent(initial?.content_json),
@@ -294,7 +297,11 @@ export function BuilderClient({
   const [slug, setSlug] = useState(initial?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(mode === "edit");
   const [templateType, setTemplateType] = useState<string>(
-    resolveTemplate(initial?.template_type ?? FREE_TEMPLATE_ID)
+    resolveTemplate(
+      mode === "new"
+        ? (initialTemplate ?? initial?.template_type ?? FREE_TEMPLATE_ID)
+        : (initial?.template_type ?? FREE_TEMPLATE_ID)
+    )
   );
   const [content, setContent] = useState<InvitationContent>(seed);
 

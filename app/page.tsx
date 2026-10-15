@@ -2,8 +2,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { Suspense } from "react";
 import { Show, UserButton } from "@clerk/nextjs";
-import { ArrowRight, Check } from "lucide-react";
-import { TEMPLATE_REGISTRY } from "@/lib/templates";
+import { ArrowRight, Eye } from "lucide-react";
+import { DEMO_INVITATION, TEMPLATE_REGISTRY } from "@/lib/templates";
+import { InvitationTemplate } from "@/components/templates/InvitationTemplate";
 
 const FEATURED_IDS = [
   "aruna",
@@ -58,12 +59,12 @@ export default function Home() {
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-5">
         <Link href="/" className="flex flex-col gap-1" aria-label="NikahYuk — beranda">
           <Image
-            src="/logo-nikahyuk.png"
+            src="/logo-nikahyuk.svg"
             alt="NikahYuk"
-            width={200}
-            height={100}
+            width={360}
+            height={60}
             priority
-            className="h-10 w-auto dark:rounded-lg dark:bg-white dark:px-2 dark:py-1"
+            className="h-9 w-auto sm:h-10 dark:rounded-lg dark:bg-white dark:px-2 dark:py-1"
           />
           <span className="text-[11px] font-medium tracking-wide text-zinc-500 dark:text-zinc-400">
             Undangan Online, Lebih Mudah
@@ -175,17 +176,37 @@ export default function Home() {
             {featuredTemplates.map((t) => (
               <Link
                 key={t.id}
-                href="/dashboard"
+                href={`/dashboard/builder/new?template=${t.id}`}
                 className="group overflow-hidden rounded-2xl border border-zinc-200 transition-shadow hover:shadow-lg dark:border-zinc-800"
               >
-                <div
-                  className="flex h-28 items-end p-4"
-                  style={{
-                    background: `linear-gradient(135deg, ${t.swatches[0]} 0%, ${t.swatches[1]} 55%, ${t.swatches[2]} 130%)`,
-                  }}
-                >
-                  <span className="rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
-                    {t.name}
+                {/* Thumbnail asli: komponen template sungguhan + data demo —
+                    ornamen khas (arch Aruna, kawung Puspaningrat, mihrab
+                    Azzahra) ikut terlihat seperti di builder. */}
+                <div className="relative h-64 overflow-hidden bg-zinc-100 dark:bg-zinc-900">
+                  <div
+                    aria-hidden
+                    className="pointer-events-none h-full w-full overflow-hidden"
+                  >
+                    <InvitationTemplate
+                      title="Demo"
+                      templateType={t.id}
+                      content={DEMO_INVITATION}
+                      defaultOpened
+                      rsvpSlot={null}
+                    />
+                  </div>
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/50 to-transparent"
+                  />
+                  <span className="pointer-events-none absolute top-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-white uppercase backdrop-blur">
+                    Demo
+                  </span>
+                  <span className="absolute inset-0 flex items-center justify-center bg-[#1B2A4A]/45 opacity-0 transition-opacity group-hover:opacity-100">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F4735C] px-5 py-2.5 text-xs font-semibold text-white shadow-xl transition-transform group-hover:scale-105">
+                      <Eye className="h-3.5 w-3.5" />
+                      Lihat Demo
+                    </span>
                   </span>
                 </div>
                 <div className="p-4">
@@ -206,9 +227,9 @@ export default function Home() {
                   <p className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-600 dark:text-zinc-400">
                     {t.tagline}
                   </p>
-                  <p className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-zinc-900 group-hover:underline dark:text-zinc-100">
-                    <Check className="h-3.5 w-3.5" />
+                  <p className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-[#1B2A4A] group-hover:underline dark:text-zinc-100">
                     Coba template ini
+                    <ArrowRight className="h-3.5 w-3.5" />
                   </p>
                 </div>
               </Link>
@@ -247,11 +268,11 @@ export default function Home() {
       <footer className="border-t border-zinc-200 py-8 dark:border-zinc-800">
         <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-2 px-6 text-center">
           <Image
-            src="/logo-nikahyuk.png"
+            src="/logo-nikahyuk.svg"
             alt="NikahYuk"
-            width={160}
-            height={80}
-            className="h-8 w-auto dark:rounded-lg dark:bg-white dark:px-2 dark:py-1"
+            width={320}
+            height={53}
+            className="h-8 w-auto sm:h-9 dark:rounded-lg dark:bg-white dark:px-2 dark:py-1"
           />
           <p className="text-[11px] font-medium tracking-wide text-zinc-500 dark:text-zinc-400">
             Undangan Online, Lebih Mudah
