@@ -66,6 +66,7 @@ export function checkSaveEntitlements(input: {
   templateType: string;
   galleryCount: number;
   hasBacksound: boolean;
+  hasCustomContent: boolean;
 }): string | null {
   if (input.isPro) {
     if (input.galleryCount > PRO_MAX_GALLERY) {
@@ -82,13 +83,17 @@ export function checkSaveEntitlements(input: {
   if (input.hasBacksound) {
     return "Backsound musik khusus PRO. Upgrade untuk mengaktifkannya.";
   }
+  if (input.hasCustomContent) {
+    return "Sapaan kustom & Timeline Cerita khusus PRO. Upgrade untuk menggunakannya.";
+  }
   return null;
 }
 
 /**
  * Terapkan batasan paket saat render publik (defense in depth):
  * halaman Free selalu tanpa backsound, galeri dibatasi, tanpa sisa
- * konten PRO walau data di DB memilikinya.
+ * konten PRO walau data di DB memilikinya — termasuk sapaan kustom,
+ * pesan penutup, dan timeline cerita.
  */
 export function applyRenderEntitlements(
   content: InvitationContent,
@@ -99,5 +104,8 @@ export function applyRenderEntitlements(
     ...content,
     backsoundUrl: "",
     galleryImages: content.galleryImages.slice(0, FREE_MAX_GALLERY),
+    greeting: undefined,
+    closingNote: undefined,
+    stories: undefined,
   };
 }

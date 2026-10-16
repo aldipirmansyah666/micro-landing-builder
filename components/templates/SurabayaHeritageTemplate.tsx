@@ -15,6 +15,7 @@ import {
   coupleEntries,
   eventEntries,
   KawungBand,
+  StoryTimeline,
   useInvitationState,
 } from "./parts";
 import type { TemplateProps } from "./types";
@@ -93,6 +94,14 @@ export function SurabayaHeritageTemplate({ title, content, guestName, rsvpSlot, 
           </Reveal>
         )}
 
+        {content.greeting ? (
+          <Reveal>
+            <p className="mx-auto mt-8 max-w-sm border-y border-[#c9a227] py-4 text-center font-serif text-lg leading-8 text-[#3d4a6a] italic">
+              {content.greeting}
+            </p>
+          </Reveal>
+        ) : null}
+
         <Reveal>
           <p className="mt-10 text-center text-[11px] tracking-[0.4em] text-[#8a7a2e] uppercase">Mempelai</p>
           <div className="mt-6 space-y-6">
@@ -107,6 +116,17 @@ export function SurabayaHeritageTemplate({ title, content, guestName, rsvpSlot, 
               ))}
           </div>
         </Reveal>
+
+        <StoryTimeline
+          stories={content.stories}
+          heading="Kisah Kami"
+          sectionClass="mt-10 border-2 border-[#1b2a4a] p-1.5 text-center"
+          headingClass="mt-2 text-[11px] tracking-[0.4em] text-[#8a7a2e] uppercase"
+          itemClass="mx-auto max-w-xs border border-[#c9a227] px-5 py-4"
+          marker={<span aria-hidden className="text-[#c9a227]">◆</span>}
+          titleClass="mt-1 font-serif text-xl text-[#1b2a4a]"
+          textClass="mt-1 font-sans text-xs leading-6 text-[#3d4a6a]"
+        />
 
         <Reveal>
           <div className="mt-10 bg-[#1b2a4a] px-6 py-8 text-center text-[#f7f1e3]">
@@ -189,7 +209,13 @@ export function SurabayaHeritageTemplate({ title, content, guestName, rsvpSlot, 
           </div>
         </Reveal>
 
-        <p className="mt-10 text-center text-sm text-[#3d4a6a]">Terima kasih atas doa & kehadiran Anda</p>
+        {content.closingNote !== undefined ? (
+          content.closingNote ? (
+            <p className="mt-10 text-center text-sm text-[#3d4a6a]">{content.closingNote}</p>
+          ) : null
+        ) : (
+          <p className="mt-10 text-center text-sm text-[#3d4a6a]">Terima kasih atas doa & kehadiran Anda</p>
+        )}
         <p className="mt-2 text-center text-xs tracking-[0.3em] text-[#8a7a2e] uppercase">{names}</p>
       </div>
 

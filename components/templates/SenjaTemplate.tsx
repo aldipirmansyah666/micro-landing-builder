@@ -1,7 +1,7 @@
 "use client";
 
 import { Gift, Images, MapPin, Mountain } from "lucide-react";
-import { coupleNames, formatDateLong } from "@/lib/invitation";
+import { coupleNames, formatDateLong, resolveGreeting } from "@/lib/invitation";
 import {
   CoverOverlay,
   CopyRekeningButton,
@@ -14,6 +14,7 @@ import {
   CountdownUnits,
   coupleEntries,
   eventEntries,
+  StoryTimeline,
   useInvitationState,
 } from "./parts";
 import type { TemplateProps } from "./types";
@@ -28,6 +29,7 @@ export function SenjaTemplate({ title, content, guestName, rsvpSlot, defaultOpen
     useInvitationState(content, defaultOpened);
   const guest = guestName?.trim() || "Tamu Undangan";
   const names = coupleNames(content);
+  const greeting = resolveGreeting(content.greeting, "Assalamu'alaikum Wr. Wb.");
 
   return (
     <div className="relative min-h-full bg-[#efe7d3] font-serif text-[#3f3a2c] antialiased">
@@ -82,9 +84,11 @@ export function SenjaTemplate({ title, content, guestName, rsvpSlot, defaultOpen
           <div className="relative mx-auto max-w-sm text-center">
             <BotanicalSprig className="absolute -left-1 -top-2 h-24 w-7 text-[#4a5d3a]/40" />
             <BotanicalSprig className="absolute -right-1 -top-2 h-24 w-7 -scale-x-100 text-[#4a5d3a]/40" />
-            <p className="text-[11px] tracking-[0.35em] text-[#6b5b3e] uppercase">
-              Assalamu&apos;alaikum Wr. Wb.
-            </p>
+            {greeting && (
+              <p className="text-[11px] tracking-[0.35em] text-[#6b5b3e] uppercase">
+                {greeting}
+              </p>
+            )}
             {content.quote && (
               <p className="mx-auto mt-4 text-[15px] leading-8 text-[#3f3a2c]/85 italic">
                 &ldquo;{content.quote}&rdquo;
@@ -120,6 +124,17 @@ export function SenjaTemplate({ title, content, guestName, rsvpSlot, defaultOpen
               ))}
           </div>
         </Reveal>
+
+        <StoryTimeline
+          stories={content.stories}
+          heading="Jejak Cerita"
+          sectionClass="mx-auto mt-10 max-w-sm rounded-2xl bg-[#e8dcc3]/60 px-5 py-6 text-center"
+          headingClass="font-sans text-[11px] tracking-[0.35em] text-[#6b5b3e] uppercase"
+          itemClass="mx-auto max-w-xs"
+          marker={<span aria-hidden className="text-[#6b5b3e]">❦</span>}
+          titleClass="mt-1 font-serif text-xl text-[#3f3a2c]"
+          textClass="mt-1 font-sans text-xs leading-6 text-[#3f3a2c]/75"
+        />
 
         <Reveal>
           <div className="mx-auto mt-10 max-w-sm rounded-2xl bg-[#2c3324] px-5 py-6 text-center text-[#efe7d3]">
@@ -237,7 +252,9 @@ export function SenjaTemplate({ title, content, guestName, rsvpSlot, defaultOpen
           <span className="h-px flex-1 bg-[#6b5b3e]/50" />
         </div>
         <p className="mt-3 text-center font-sans text-xs text-[#3f3a2c]/70">
-          {names} · Sampai jumpa di hari bahagia
+          {content.closingNote !== undefined
+            ? content.closingNote || names
+            : `${names} · Sampai jumpa di hari bahagia`}
         </p>
       </div>
     </div>

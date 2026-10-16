@@ -14,6 +14,7 @@ import {
   EightPointStar,
   coupleEntries,
   eventEntries,
+  StoryTimeline,
   useInvitationState,
 } from "./parts";
 import type { TemplateProps } from "./types";
@@ -103,6 +104,14 @@ export function AzzahraTemplate({ title, content, guestName, rsvpSlot, defaultOp
           </div>
         </Reveal>
 
+        {content.greeting ? (
+          <Reveal>
+            <p className="mx-auto mt-10 max-w-sm text-center font-serif text-xl leading-9 text-[#e8dcc3]/90 italic">
+              {content.greeting}
+            </p>
+          </Reveal>
+        ) : null}
+
         <Reveal>
           <div className="mx-auto mt-10 max-w-sm space-y-6">
             {coupleEntries(content)
@@ -125,6 +134,17 @@ export function AzzahraTemplate({ title, content, guestName, rsvpSlot, defaultOp
               ))}
           </div>
         </Reveal>
+
+        <StoryTimeline
+          stories={content.stories}
+          heading="Kisah Kami"
+          sectionClass="mx-auto mt-10 max-w-sm border border-[#c2a164]/40 bg-white/[0.04] px-6 py-8 text-center"
+          headingClass="text-[11px] tracking-[0.4em] text-[#c2a164] uppercase"
+          itemClass="mx-auto max-w-xs"
+          marker={<span aria-hidden className="text-[#c2a164]">✦</span>}
+          titleClass="mt-2 font-serif text-2xl text-[#f4efe3]"
+          textClass="mt-2 font-sans text-sm leading-7 text-[#e8dcc3]/75"
+        />
 
         <Reveal>
           <div className="mx-auto mt-10 max-w-sm text-center">
@@ -237,9 +257,17 @@ export function AzzahraTemplate({ title, content, guestName, rsvpSlot, defaultOp
           <EightPointStar className="h-4 w-4" />
           <span className="h-px w-16 bg-[#c2a164]/60" />
         </div>
-        <p className="mt-4 text-center font-sans text-xs opacity-70">
-          Jazakumullah khairan atas doa Anda
-        </p>
+        {content.closingNote !== undefined ? (
+          content.closingNote ? (
+            <p className="mt-4 text-center font-sans text-xs opacity-70">
+              {content.closingNote}
+            </p>
+          ) : null
+        ) : (
+          <p className="mt-4 text-center font-sans text-xs opacity-70">
+            Jazakumullah khairan atas doa Anda
+          </p>
+        )}
       </div>
 
       <div

@@ -13,6 +13,7 @@ import {
   CountdownUnits,
   coupleEntries,
   eventEntries,
+  StoryTimeline,
   useInvitationState,
 } from "./parts";
 import type { TemplateProps } from "./types";
@@ -79,6 +80,12 @@ export function MinimalistMonoTemplate({ title, content, guestName, rsvpSlot, de
           </Reveal>
         )}
 
+        {content.greeting ? (
+          <p className="mt-8 border-l-2 border-[#1a1a1a] pl-4 text-sm leading-7 text-[#4a4a4a]">
+            {content.greeting}
+          </p>
+        ) : null}
+
         <Reveal>
           <div className="mt-10">
             <p className="text-[11px] tracking-[0.3em] text-[#6a6a6a] uppercase">Mempelai</p>
@@ -97,6 +104,17 @@ export function MinimalistMonoTemplate({ title, content, guestName, rsvpSlot, de
             </div>
           </div>
         </Reveal>
+
+        <StoryTimeline
+          stories={content.stories}
+          heading="Cerita Kami"
+          sectionClass="mt-10"
+          headingClass="text-[11px] tracking-[0.3em] text-[#6a6a6a] uppercase"
+          itemClass="mt-3 border-t border-[#e2e2e2] pt-4 first:mt-0 first:border-t-0 first:pt-0"
+          marker={<span aria-hidden className="text-[10px] tracking-[0.3em] text-[#6a6a6a]">—</span>}
+          titleClass="mt-1 text-lg font-medium"
+          textClass="mt-1 text-sm leading-7 text-[#4a4a4a]"
+        />
 
         <Reveal>
           <div className="mt-10">
@@ -188,7 +206,9 @@ export function MinimalistMonoTemplate({ title, content, guestName, rsvpSlot, de
         </Reveal>
 
         <p className="mt-10 border-t border-[#e2e2e2] pt-6 text-center text-sm text-[#6a6a6a]">
-          Terima kasih — {names}
+          {content.closingNote !== undefined
+            ? content.closingNote || names
+            : `Terima kasih — ${names}`}
         </p>
       </div>
     </div>

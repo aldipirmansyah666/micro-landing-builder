@@ -13,6 +13,7 @@ import {
   CountdownUnits,
   coupleEntries,
   eventEntries,
+  StoryTimeline,
   useInvitationState,
 } from "./parts";
 import type { TemplateProps } from "./types";
@@ -91,6 +92,14 @@ export function KalaTemplate({ title, content, guestName, rsvpSlot, defaultOpene
           </div>
         </Reveal>
 
+        {content.greeting ? (
+          <Reveal>
+            <p className="mx-auto mt-6 w-fit -rotate-2 rounded-full bg-[#3f6b63] px-5 py-2 text-center text-xs font-bold text-white shadow-md">
+              {content.greeting}
+            </p>
+          </Reveal>
+        ) : null}
+
         <Reveal>
           <div className="mx-auto mt-8 grid max-w-xs gap-3">
             {coupleEntries(content)
@@ -119,6 +128,17 @@ export function KalaTemplate({ title, content, guestName, rsvpSlot, defaultOpene
               ))}
           </div>
         </Reveal>
+
+        <StoryTimeline
+          stories={content.stories}
+          heading="Cerita Seru Kami"
+          sectionClass="mx-auto mt-8 max-w-xs text-center"
+          headingClass="text-sm font-black tracking-tight text-[#3d2a1e]"
+          itemClass="rounded-[1.75rem] bg-[#f7e8d5] px-5 py-4 shadow-sm"
+          marker={<span aria-hidden className="text-[#c96f4a]">●</span>}
+          titleClass="mt-1 text-lg font-black text-[#3d2a1e]"
+          textClass="mt-1 text-xs leading-6 text-[#3d2a1e]/75"
+        />
 
         <Reveal>
           <div className="mx-auto mt-8 max-w-xs rounded-[1.75rem] bg-[#3f6b63] px-5 py-6 text-center text-white shadow-lg shadow-[#3f6b63]/30">
@@ -226,7 +246,9 @@ export function KalaTemplate({ title, content, guestName, rsvpSlot, defaultOpene
         </Reveal>
 
         <p className="mt-10 text-center text-xs font-bold text-[#c96f4a]">
-          {names} · Sampai jumpa! 🎉
+          {content.closingNote !== undefined
+            ? content.closingNote || names
+            : `${names} · Sampai jumpa! 🎉`}
         </p>
       </div>
     </div>

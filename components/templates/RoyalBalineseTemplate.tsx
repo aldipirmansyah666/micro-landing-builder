@@ -1,7 +1,7 @@
 "use client";
 
 import { CalendarDays, Gift, Images, MapPin } from "lucide-react";
-import { coupleNames, formatDateLong } from "@/lib/invitation";
+import { coupleNames, formatDateLong, resolveGreeting } from "@/lib/invitation";
 import {
   CoverOverlay,
   CopyRekeningButton,
@@ -16,6 +16,7 @@ import {
   coupleEntries,
   eventEntries,
   KawungBand,
+  StoryTimeline,
   useInvitationState,
 } from "./parts";
 import type { TemplateProps } from "./types";
@@ -29,6 +30,7 @@ export function RoyalBalineseTemplate({ title, content, guestName, rsvpSlot, def
     useInvitationState(content, defaultOpened);
   const guest = guestName?.trim() || "Tamu Undangan";
   const names = coupleNames(content);
+  const greeting = resolveGreeting(content.greeting, "Om Swastiastu");
   const eventDate = content.akadDate || content.receptionDate;
 
   return (
@@ -59,7 +61,9 @@ export function RoyalBalineseTemplate({ title, content, guestName, rsvpSlot, def
       <div className="mx-auto max-w-md px-8 py-10">
         <Reveal>
           <div className="text-center">
-            <p className="text-[11px] tracking-[0.45em] text-[#c9973f] uppercase">Om Swastiastu</p>
+            {greeting && (
+              <p className="text-[11px] tracking-[0.45em] text-[#c9973f] uppercase">{greeting}</p>
+            )}
             <OrnateDivider ornament="❖" className="mx-auto mt-4 max-w-48 text-[#c9973f]" lineClass="bg-[#c9973f]/60" />
             <h2 className="mt-5 text-4xl leading-snug font-medium">{names}</h2>
             {eventDate && (
@@ -104,6 +108,17 @@ export function RoyalBalineseTemplate({ title, content, guestName, rsvpSlot, def
               ))}
           </div>
         </Reveal>
+
+        <StoryTimeline
+          stories={content.stories}
+          heading="Kisah Kami"
+          sectionClass="mt-10 border border-[#c9973f]/60 bg-[#3d1616] px-6 py-8 text-center"
+          headingClass="text-[11px] tracking-[0.45em] text-[#c9973f] uppercase"
+          itemClass="mx-auto max-w-xs"
+          marker={<span aria-hidden className="text-[#c9973f]">❖</span>}
+          titleClass="mt-2 font-serif text-2xl text-[#f7ecc8]"
+          textClass="mt-2 font-sans text-xs leading-6 text-[#d9c493]"
+        />
 
         <Reveal>
           <div className="mt-10 border border-[#c9973f]/60 bg-[#3d1616] px-6 py-8 text-center">
@@ -187,7 +202,13 @@ export function RoyalBalineseTemplate({ title, content, guestName, rsvpSlot, def
         </Reveal>
 
         <OrnateDivider ornament="❖" className="mx-auto mt-12 max-w-48 text-[#c9973f]" lineClass="bg-[#c9973f]/60" />
-        <p className="mt-6 text-center text-sm text-[#a8937a]">Om Shanti Shanti Shanti Om</p>
+        {content.closingNote !== undefined ? (
+          content.closingNote ? (
+            <p className="mt-6 text-center text-sm text-[#a8937a]">{content.closingNote}</p>
+          ) : null
+        ) : (
+          <p className="mt-6 text-center text-sm text-[#a8937a]">Om Shanti Shanti Shanti Om</p>
+        )}
         <p className="mt-2 text-center text-xs tracking-[0.3em] text-[#c9973f] uppercase">{names}</p>
       </div>
 

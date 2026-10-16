@@ -217,6 +217,10 @@ export async function POST(req: Request) {
     templateType,
     galleryCount: normalized.galleryImages.length,
     hasBacksound: normalized.backsoundUrl.trim() !== "",
+    hasCustomContent:
+      normalized.greeting !== undefined ||
+      normalized.closingNote !== undefined ||
+      normalized.stories !== undefined,
   });
   if (entitlementError) {
     return NextResponse.json({ error: entitlementError }, { status: 403 });

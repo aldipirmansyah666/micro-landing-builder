@@ -18,6 +18,7 @@ import {
   EyeOff,
   ImagePlus,
   Loader2,
+  Lock,
   MessageCircle,
   Minus,
   Music,
@@ -639,6 +640,7 @@ export function BuilderClient({
             </Field>
           </Accordion>
 
+          {isPro ? (
           <Accordion title="💌 Cerita & Sapaan">
             <Field label={`Sapaan Pembuka (${(content.greeting ?? "").length}/${MAX_GREETING_LEN})`}>
               <textarea
@@ -689,8 +691,8 @@ export function BuilderClient({
               </button>
             </div>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Tampil sebagai timeline hanya pada template Aruna, Blossom Sage,
-              dan Mahardika. Cerita kosong tidak ditampilkan.
+              Tampil sebagai timeline pada template PRO. Cerita kosong tidak
+              ditampilkan.
             </p>
             {stories.map((s, i) => (
               <div
@@ -750,6 +752,32 @@ export function BuilderClient({
               </div>
             ))}
           </Accordion>
+          ) : (
+          <div className="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/30">
+            <div className="flex items-center justify-between gap-2 px-4 py-3.5">
+              <p className="text-sm font-semibold tracking-tight">
+                💌 Cerita & Sapaan
+              </p>
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-400 px-2.5 py-1 text-[10px] font-bold text-amber-950">
+                <Lock className="h-3 w-3" />
+                PRO
+              </span>
+            </div>
+            <div className="space-y-3 px-4 pb-4">
+              <p className="text-xs leading-6 text-amber-900 dark:text-amber-200">
+                Fitur khusus pengguna PRO — Upgrade seharga Rp 49.000 untuk
+                mengaktifkan Sapaan Kustom & Timeline Cerita Pasangan.
+              </p>
+              {savedSlug ? (
+                <UpgradeProButton slug={savedSlug} />
+              ) : (
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Simpan undangan terlebih dahulu untuk membuka upgrade.
+                </p>
+              )}
+            </div>
+          </div>
+          )}
 
           <Accordion title="💍 Profil Mempelai Pria & Wanita">
             <p className="text-sm font-medium">Mempelai Pria</p>

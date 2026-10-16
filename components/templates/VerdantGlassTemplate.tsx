@@ -14,6 +14,7 @@ import {
   CountdownUnits,
   coupleEntries,
   eventEntries,
+  StoryTimeline,
   useInvitationState,
 } from "./parts";
 import type { TemplateProps } from "./types";
@@ -94,6 +95,14 @@ export function VerdantGlassTemplate({ title, content, guestName, rsvpSlot, defa
           </Reveal>
         )}
 
+        {content.greeting ? (
+          <Reveal>
+            <p className="mx-auto mt-6 max-w-sm rounded-3xl border border-white/15 bg-white/5 px-6 py-4 text-center font-serif text-lg leading-8 text-emerald-50/90 italic backdrop-blur-lg">
+              {content.greeting}
+            </p>
+          </Reveal>
+        ) : null}
+
         <Reveal>
           <div className="mt-6 space-y-4">
             <SectionHeading kicker="Mempelai" className="text-emerald-200/80" />
@@ -114,6 +123,17 @@ export function VerdantGlassTemplate({ title, content, guestName, rsvpSlot, defa
               ))}
           </div>
         </Reveal>
+
+        <StoryTimeline
+          stories={content.stories}
+          heading="Cerita Kami"
+          sectionClass="mt-6 rounded-3xl border border-white/15 bg-white/5 p-6 text-center backdrop-blur-lg"
+          headingClass="text-[11px] tracking-[0.35em] text-emerald-200/80 uppercase"
+          itemClass="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-xl"
+          marker={<span aria-hidden className="text-emerald-200/70">✦</span>}
+          titleClass="mt-1 font-serif text-xl text-white"
+          textClass="mt-1 font-sans text-xs leading-6 text-emerald-100/80"
+        />
 
         <Reveal>
           <div className="mt-6 rounded-3xl border border-white/15 bg-white/5 p-6 text-center backdrop-blur-lg">
@@ -204,7 +224,13 @@ export function VerdantGlassTemplate({ title, content, guestName, rsvpSlot, defa
           </div>
         </Reveal>
 
-        <p className="mt-10 text-center text-sm text-emerald-100/80">Terima kasih atas doa & kehadiran Anda</p>
+        {content.closingNote !== undefined ? (
+          content.closingNote ? (
+            <p className="mt-10 text-center text-sm text-emerald-100/80">{content.closingNote}</p>
+          ) : null
+        ) : (
+          <p className="mt-10 text-center text-sm text-emerald-100/80">Terima kasih atas doa & kehadiran Anda</p>
+        )}
         <p className="mt-2 text-center text-xs tracking-[0.3em] text-emerald-200/70 uppercase">{names}</p>
       </div>
     </div>

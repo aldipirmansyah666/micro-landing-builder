@@ -1,7 +1,7 @@
 "use client";
 
 import { CalendarDays, Gift, Images, MapPin } from "lucide-react";
-import { coupleNames, formatDateLong } from "@/lib/invitation";
+import { coupleNames, formatDateLong, resolveGreeting } from "@/lib/invitation";
 import {
   CoverOverlay,
   CopyRekeningButton,
@@ -15,6 +15,7 @@ import {
   coupleEntries,
   EightPointStar,
   eventEntries,
+  StoryTimeline,
   useInvitationState,
 } from "./parts";
 import type { TemplateProps } from "./types";
@@ -28,6 +29,7 @@ export function ArabesqueSakralTemplate({ title, content, guestName, rsvpSlot, d
     useInvitationState(content, defaultOpened);
   const guest = guestName?.trim() || "Tamu Undangan";
   const names = coupleNames(content);
+  const greeting = resolveGreeting(content.greeting, "Bismillahirrahmanirrahim");
   const eventDate = content.akadDate || content.receptionDate;
 
   return (
@@ -65,7 +67,9 @@ export function ArabesqueSakralTemplate({ title, content, guestName, rsvpSlot, d
           <div className="text-center">
             <div className="flex items-center justify-center gap-4 text-[#c9a227]">
               <EightPointStar className="h-8 w-8" />
-              <p className="text-[11px] tracking-[0.4em] uppercase">Bismillahirrahmanirrahim</p>
+              {greeting && (
+                <p className="text-[11px] tracking-[0.4em] uppercase">{greeting}</p>
+              )}
               <EightPointStar className="h-8 w-8" />
             </div>
             <h2 className="mt-5 text-4xl leading-snug font-medium text-[#f7f0da]">{names}</h2>
@@ -111,6 +115,17 @@ export function ArabesqueSakralTemplate({ title, content, guestName, rsvpSlot, d
               ))}
           </div>
         </Reveal>
+
+        <StoryTimeline
+          stories={content.stories}
+          heading="Kisah Kami"
+          sectionClass="mt-10 border border-[#c9a227]/50 bg-[#082b28] px-6 py-8 text-center"
+          headingClass="text-[11px] tracking-[0.4em] text-[#c9a227] uppercase"
+          itemClass="mx-auto max-w-xs rounded-t-full border border-[#c9a227]/50 px-5 pt-8 pb-6"
+          marker={<span aria-hidden className="text-[#c9a227]">✦</span>}
+          titleClass="mt-2 font-serif text-xl text-[#f7f0da]"
+          textClass="mt-1 font-sans text-xs leading-6 text-[#c9bfa5]"
+        />
 
         <Reveal>
           <div className="mt-10 border border-[#c9a227]/50 bg-[#082b28] px-6 py-8 text-center">
@@ -194,7 +209,13 @@ export function ArabesqueSakralTemplate({ title, content, guestName, rsvpSlot, d
 
         <div className="mt-12 flex items-center justify-center gap-4 text-[#c9a227]">
           <EightPointStar className="h-6 w-6" />
-          <p className="text-center text-sm text-[#9a917a]">Terima kasih atas doa & kehadiran Anda</p>
+          {content.closingNote !== undefined ? (
+            content.closingNote ? (
+              <p className="text-center text-sm text-[#9a917a]">{content.closingNote}</p>
+            ) : null
+          ) : (
+            <p className="text-center text-sm text-[#9a917a]">Terima kasih atas doa & kehadiran Anda</p>
+          )}
           <EightPointStar className="h-6 w-6" />
         </div>
         <p className="mt-3 text-center text-xs tracking-[0.3em] text-[#c9a227] uppercase">{names}</p>

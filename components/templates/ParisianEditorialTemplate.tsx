@@ -13,6 +13,7 @@ import {
   CountdownUnits,
   coupleEntries,
   eventEntries,
+  StoryTimeline,
   useInvitationState,
 } from "./parts";
 import type { TemplateProps } from "./types";
@@ -91,6 +92,11 @@ export function ParisianEditorialTemplate({ title, content, guestName, rsvpSlot,
         </Reveal>
 
         <div className="px-6 py-10">
+          {content.greeting ? (
+            <p className="border-l-4 border-black pl-4 text-sm font-bold uppercase italic">
+              {content.greeting}
+            </p>
+          ) : null}
           <Reveal>
             <p className="text-[11px] font-bold tracking-[0.3em] uppercase">01 / Mempelai</p>
             <div className="mt-4 grid grid-cols-2 gap-0 border-2 border-black">
@@ -104,6 +110,17 @@ export function ParisianEditorialTemplate({ title, content, guestName, rsvpSlot,
               ))}
             </div>
           </Reveal>
+
+          <StoryTimeline
+            stories={content.stories}
+            heading="Love Story"
+            sectionClass="mt-10 border-2 border-black p-5"
+            headingClass="text-[11px] font-bold tracking-[0.3em] uppercase"
+            itemClass="mt-4 border-t-2 border-black pt-4 first:mt-0 first:border-t-0 first:pt-0"
+            marker={<span aria-hidden className="text-xs font-black">—</span>}
+            titleClass="mt-1 text-2xl font-black uppercase"
+            textClass="mt-1 text-xs leading-6 opacity-70"
+          />
 
           <Reveal>
             <div className="mt-10 border-2 border-black">
@@ -192,7 +209,9 @@ export function ParisianEditorialTemplate({ title, content, guestName, rsvpSlot,
           </Reveal>
 
           <p className="mt-10 border-t-2 border-black pt-6 text-center text-xs font-bold tracking-[0.25em] uppercase">
-            {names} — Terima kasih
+            {content.closingNote !== undefined
+              ? content.closingNote || names
+              : `${names} — Terima kasih`}
           </p>
           <p className="h-8" />
         </div>

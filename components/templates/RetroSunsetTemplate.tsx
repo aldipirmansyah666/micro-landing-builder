@@ -14,6 +14,7 @@ import {
   CountdownUnits,
   coupleEntries,
   eventEntries,
+  StoryTimeline,
   useInvitationState,
 } from "./parts";
 import type { TemplateProps } from "./types";
@@ -96,6 +97,14 @@ export function RetroSunsetTemplate({ title, content, guestName, rsvpSlot, defau
           </Reveal>
         )}
 
+        {content.greeting ? (
+          <Reveal>
+            <p className="mx-auto mt-8 w-fit -rotate-1 rounded-2xl bg-[#e8a94e]/50 px-5 py-2 text-center text-sm font-bold text-[#4a2c17]">
+              {content.greeting}
+            </p>
+          </Reveal>
+        ) : null}
+
         <Reveal>
           <div className="mt-12 grid gap-4">
             {coupleEntries(content)
@@ -110,6 +119,17 @@ export function RetroSunsetTemplate({ title, content, guestName, rsvpSlot, defau
               ))}
           </div>
         </Reveal>
+
+        <StoryTimeline
+          stories={content.stories}
+          heading="Cerita Kita"
+          sectionClass="mt-8 text-center"
+          headingClass="text-lg font-black tracking-tight text-[#4a2c17]"
+          itemClass="rounded-[2rem] border-4 border-[#2f3e33] bg-white px-6 py-5 shadow-[4px_4px_0_#2f3e33]"
+          marker={<span aria-hidden className="text-[#c96f4a]">☀</span>}
+          titleClass="mt-1 text-xl font-black text-[#4a2c17]"
+          textClass="mt-1 text-xs leading-6 text-[#4a2c17]/75"
+        />
 
         <Reveal>
           <div className="mt-8 rounded-[2rem] bg-[#2f3e33] px-6 py-8 text-center text-[#fbe3c8] shadow-[6px_6px_0_#c96f4a]">
@@ -191,7 +211,13 @@ export function RetroSunsetTemplate({ title, content, guestName, rsvpSlot, defau
           </div>
         </Reveal>
 
-        <p className="mt-12 text-center text-sm font-bold">Terima kasih atas doa & kehadiran Anda ☀</p>
+        {content.closingNote !== undefined ? (
+          content.closingNote ? (
+            <p className="mt-12 text-center text-sm font-bold">{content.closingNote}</p>
+          ) : null
+        ) : (
+          <p className="mt-12 text-center text-sm font-bold">Terima kasih atas doa & kehadiran Anda ☀</p>
+        )}
         <p className="mt-2 text-center text-xs font-bold tracking-[0.3em] text-[#b4552d] uppercase">{names}</p>
       </div>
     </div>

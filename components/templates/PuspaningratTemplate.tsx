@@ -1,7 +1,7 @@
 "use client";
 
 import { Gift, Images, MapPin } from "lucide-react";
-import { coupleNames, formatDateLong } from "@/lib/invitation";
+import { coupleNames, formatDateLong, resolveGreeting } from "@/lib/invitation";
 import {
   CoverOverlay,
   CopyRekeningButton,
@@ -14,6 +14,7 @@ import {
   KawungBand,
   coupleEntries,
   eventEntries,
+  StoryTimeline,
   useInvitationState,
 } from "./parts";
 import type { TemplateProps } from "./types";
@@ -27,6 +28,7 @@ export function PuspaningratTemplate({ title, content, guestName, rsvpSlot, defa
     useInvitationState(content, defaultOpened);
   const guest = guestName?.trim() || "Tamu Undangan";
   const names = coupleNames(content);
+  const greeting = resolveGreeting(content.greeting, "Sugeng Rawuh · Assalamu'alaikum Wr. Wb.");
 
   return (
     <div className="relative min-h-full bg-[#f6efe2] font-serif text-[#4a3826] antialiased">
@@ -59,9 +61,11 @@ export function PuspaningratTemplate({ title, content, guestName, rsvpSlot, defa
       <div className="px-6 pt-4 pb-10">
         <Reveal>
           <div className="text-center">
-            <p className="text-[11px] tracking-[0.4em] text-[#8a5a2b] uppercase">
-              Sugeng Rawuh · Assalamu&apos;alaikum Wr. Wb.
-            </p>
+            {greeting && (
+              <p className="text-[11px] tracking-[0.4em] text-[#8a5a2b] uppercase">
+                {greeting}
+              </p>
+            )}
             {content.quote && (
               <p className="mx-auto mt-4 max-w-sm rounded-xl border border-[#8a5a2b]/30 bg-[#fffdf6] px-5 py-4 text-sm leading-7 text-[#5c4a33] italic">
                 &ldquo;{content.quote}&rdquo;
@@ -120,6 +124,17 @@ export function PuspaningratTemplate({ title, content, guestName, rsvpSlot, defa
               ))}
           </div>
         </Reveal>
+
+        <StoryTimeline
+          stories={content.stories}
+          heading="Kisah Katresnan"
+          sectionClass="mt-8 border-y border-[#8a5a2b]/30 bg-[#fffdf6]/60 py-8 text-center"
+          headingClass="font-sans text-[11px] tracking-[0.35em] text-[#8a5a2b] uppercase"
+          itemClass="mx-auto max-w-sm"
+          marker={<span aria-hidden className="text-[#8a5a2b]">❖</span>}
+          titleClass="mt-2 font-serif text-2xl text-[#4a3a26]"
+          textClass="mx-auto mt-2 max-w-sm font-sans text-sm leading-7 text-[#5c4a33]/80"
+        />
 
         <Reveal>
           <div className="mt-8 text-center">
@@ -227,7 +242,13 @@ export function PuspaningratTemplate({ title, content, guestName, rsvpSlot, defa
           </div>
         </Reveal>
 
-        <p className="mt-10 text-center text-sm text-[#5c4a33]">Matur nuwun sanget 🙏</p>
+        {content.closingNote !== undefined ? (
+          content.closingNote ? (
+            <p className="mt-10 text-center text-sm text-[#5c4a33]">{content.closingNote}</p>
+          ) : null
+        ) : (
+          <p className="mt-10 text-center text-sm text-[#5c4a33]">Matur nuwun sanget 🙏</p>
+        )}
       </div>
 
       {/* Pita kawung bawah */}

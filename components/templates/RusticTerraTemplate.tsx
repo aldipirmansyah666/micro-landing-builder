@@ -16,6 +16,7 @@ import {
   CountdownUnits,
   coupleEntries,
   eventEntries,
+  StoryTimeline,
   useInvitationState,
 } from "./parts";
 import type { TemplateProps } from "./types";
@@ -93,6 +94,14 @@ export function RusticTerraTemplate({ title, content, guestName, rsvpSlot, defau
           </Reveal>
         )}
 
+        {content.greeting ? (
+          <Reveal>
+            <p className="mx-auto mt-8 max-w-sm text-center font-serif text-xl leading-9 text-[#6a563e] italic">
+              {content.greeting}
+            </p>
+          </Reveal>
+        ) : null}
+
         <Reveal>
           <p className="mt-12 text-center text-[11px] tracking-[0.35em] text-[#b4552d] uppercase">Mempelai Berbahagia</p>
           <div className="mt-6 space-y-6">
@@ -107,6 +116,17 @@ export function RusticTerraTemplate({ title, content, guestName, rsvpSlot, defau
               ))}
           </div>
         </Reveal>
+
+        <StoryTimeline
+          stories={content.stories}
+          heading="Cerita Kami"
+          sectionClass="mt-12 text-center"
+          headingClass="text-[11px] tracking-[0.35em] text-[#b4552d] uppercase"
+          itemClass="mx-auto max-w-sm rounded-[2rem] border border-dashed border-[#b4552d]/40 bg-[#fdf8ef] px-6 py-5 shadow-sm"
+          marker={<span aria-hidden className="text-[#b4552d]">❧</span>}
+          titleClass="mt-1 font-serif text-xl text-[#3a2d20]"
+          textClass="mt-1 font-sans text-xs leading-6 text-[#6a563e]"
+        />
 
         <Reveal>
           <div className="mt-12 text-center">
@@ -188,7 +208,13 @@ export function RusticTerraTemplate({ title, content, guestName, rsvpSlot, defau
           </div>
         </Reveal>
 
-        <p className="mt-12 text-center text-sm text-[#6a563e]">Terima kasih atas doa & kehadiran Anda</p>
+        {content.closingNote !== undefined ? (
+          content.closingNote ? (
+            <p className="mt-12 text-center text-sm text-[#6a563e]">{content.closingNote}</p>
+          ) : null
+        ) : (
+          <p className="mt-12 text-center text-sm text-[#6a563e]">Terima kasih atas doa & kehadiran Anda</p>
+        )}
         <p className="mt-2 text-center text-xs tracking-[0.3em] text-[#b4552d] uppercase">{names}</p>
       </div>
     </div>

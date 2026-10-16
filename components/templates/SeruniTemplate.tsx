@@ -1,7 +1,7 @@
 "use client";
 
 import { Gift, Images, MapPin } from "lucide-react";
-import { coupleNames, formatDateLong } from "@/lib/invitation";
+import { coupleNames, formatDateLong, resolveGreeting } from "@/lib/invitation";
 import {
   CoverOverlay,
   CopyRekeningButton,
@@ -14,6 +14,7 @@ import {
   CountdownUnits,
   coupleEntries,
   eventEntries,
+  StoryTimeline,
   useInvitationState,
 } from "./parts";
 import type { TemplateProps } from "./types";
@@ -27,6 +28,7 @@ export function SeruniTemplate({ title, content, guestName, rsvpSlot, defaultOpe
     useInvitationState(content, defaultOpened);
   const guest = guestName?.trim() || "Tamu Undangan";
   const names = coupleNames(content);
+  const greeting = resolveGreeting(content.greeting, "Assalamu'alaikum Wr. Wb.");
 
   return (
     <div className="relative min-h-full overflow-hidden bg-[#fdf6f7] font-serif text-[#6b4a52] antialiased">
@@ -63,9 +65,11 @@ export function SeruniTemplate({ title, content, guestName, rsvpSlot, defaultOpe
           <div className="relative text-center">
             <BotanicalSprig className="absolute top-0 left-0 h-32 w-9 text-[#8a9b85]/60" />
             <BotanicalSprig className="absolute top-0 right-0 h-32 w-9 -scale-x-100 text-[#c98a94]/60" />
-            <p className="text-[11px] tracking-[0.4em] text-[#c98a94] uppercase">
-              Assalamu&apos;alaikum Wr. Wb.
-            </p>
+            {greeting && (
+              <p className="text-[11px] tracking-[0.4em] text-[#c98a94] uppercase">
+                {greeting}
+              </p>
+            )}
             {content.quote && (
               <p className="mx-auto mt-4 max-w-xs text-sm leading-7 text-[#6b4a52]/80 italic">
                 &ldquo;{content.quote}&rdquo;
@@ -121,6 +125,17 @@ export function SeruniTemplate({ title, content, guestName, rsvpSlot, defaultOpe
               ))}
           </div>
         </Reveal>
+
+        <StoryTimeline
+          stories={content.stories}
+          heading="Cerita Cinta Kami"
+          sectionClass="mx-auto mt-10 max-w-xs text-center"
+          headingClass="font-serif text-2xl text-[#c98a94] italic"
+          itemClass="rounded-[2rem] bg-white px-6 py-5 shadow-sm"
+          marker={<span aria-hidden className="text-[#c98a94]">❀</span>}
+          titleClass="mt-1 font-serif text-lg text-[#6b4a52] italic"
+          textClass="mt-1 font-sans text-xs leading-6 text-[#6b4a52]/75"
+        />
 
         <Reveal>
           <div className="mx-auto mt-10 max-w-xs text-center">
@@ -230,7 +245,9 @@ export function SeruniTemplate({ title, content, guestName, rsvpSlot, defaultOpe
         </Reveal>
 
         <p className="mt-10 text-center text-xs text-[#a08a90]">
-          {names} · with love 🌸
+          {content.closingNote !== undefined
+            ? content.closingNote || names
+            : `${names} · with love 🌸`}
         </p>
       </div>
     </div>

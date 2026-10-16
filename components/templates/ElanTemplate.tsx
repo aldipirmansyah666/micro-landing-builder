@@ -13,6 +13,7 @@ import {
   CountdownUnits,
   coupleEntries,
   eventEntries,
+  StoryTimeline,
   useInvitationState,
 } from "./parts";
 import type { TemplateProps } from "./types";
@@ -102,6 +103,13 @@ export function ElanTemplate({ title, content, guestName, rsvpSlot, defaultOpene
           </div>
         </Reveal>
 
+        {/* Sapaan kustom (PRO): hanya tampil bila diisi */}
+        {content.greeting ? (
+          <p className="mt-6 border-l-2 border-current pl-4 text-sm italic opacity-80">
+            {content.greeting}
+          </p>
+        ) : null}
+
         {/* Mempelai bernomor editorial */}
         {couples.map((p, i) => (
           <Reveal key={p.key}>
@@ -127,6 +135,17 @@ export function ElanTemplate({ title, content, guestName, rsvpSlot, defaultOpene
             </div>
           </Reveal>
         ))}
+
+        <StoryTimeline
+          stories={content.stories}
+          heading="Our Story"
+          sectionClass="mt-8 border-2 border-current p-5"
+          headingClass="text-[11px] font-bold tracking-[0.3em] uppercase"
+          itemClass="mt-4 border-t border-current/20 pt-4 first:mt-0 first:border-t-0 first:pt-0"
+          marker={<span aria-hidden className="text-[10px] font-bold opacity-50">— N°</span>}
+          titleClass="mt-1 text-xl font-black uppercase"
+          textClass="mt-1 text-xs leading-6 opacity-70"
+        />
 
         {/* Countdown tabular tegas */}
         <Reveal>
@@ -238,6 +257,11 @@ export function ElanTemplate({ title, content, guestName, rsvpSlot, defaultOpene
           </div>
         </Reveal>
 
+        {content.closingNote ? (
+          <p className="mt-10 text-center text-sm italic opacity-70">
+            {content.closingNote}
+          </p>
+        ) : null}
         <p className="mt-10 text-[10px] tracking-[0.3em] text-current/50 uppercase">
           Élan © 2026 — {names}
         </p>

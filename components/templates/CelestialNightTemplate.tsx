@@ -14,6 +14,7 @@ import {
   CountdownUnits,
   coupleEntries,
   eventEntries,
+  StoryTimeline,
   useInvitationState,
 } from "./parts";
 import type { TemplateProps } from "./types";
@@ -106,6 +107,14 @@ export function CelestialNightTemplate({ title, content, guestName, rsvpSlot, de
           </Reveal>
         )}
 
+        {content.greeting ? (
+          <Reveal>
+            <p className="mx-auto mt-10 max-w-sm text-center font-serif text-xl leading-9 text-[#e8d9a8] italic">
+              {content.greeting}
+            </p>
+          </Reveal>
+        ) : null}
+
         <Reveal>
           <div className="mt-12 space-y-8 text-center">
             {coupleEntries(content)
@@ -120,6 +129,17 @@ export function CelestialNightTemplate({ title, content, guestName, rsvpSlot, de
               ))}
           </div>
         </Reveal>
+
+        <StoryTimeline
+          stories={content.stories}
+          heading="Constellation of Us"
+          sectionClass="mt-12 rounded-3xl border border-[#d4af37]/30 bg-white/[0.04] px-6 py-8 text-center backdrop-blur"
+          headingClass="text-[11px] tracking-[0.4em] text-[#d4af37] uppercase"
+          itemClass="mx-auto max-w-xs"
+          marker={<span aria-hidden className="text-[#d4af37]">✦</span>}
+          titleClass="mt-2 font-serif text-2xl text-[#f7ecc8]"
+          textClass="mt-1 font-sans text-xs leading-6 text-[#c9c2ab]"
+        />
 
         <Reveal>
           <div className="mt-12 rounded-3xl border border-[#d4af37]/30 bg-white/[0.04] px-6 py-8 text-center backdrop-blur">
@@ -200,7 +220,13 @@ export function CelestialNightTemplate({ title, content, guestName, rsvpSlot, de
           </div>
         </Reveal>
 
-        <p className="mt-12 text-center text-sm text-[#8a8474]">Terima kasih atas doa & kehadiran Anda</p>
+        {content.closingNote !== undefined ? (
+          content.closingNote ? (
+            <p className="mt-12 text-center text-sm text-[#8a8474]">{content.closingNote}</p>
+          ) : null
+        ) : (
+          <p className="mt-12 text-center text-sm text-[#8a8474]">Terima kasih atas doa & kehadiran Anda</p>
+        )}
         <p className="mt-2 bg-gradient-to-b from-[#f7ecc8] to-[#9a7b24] bg-clip-text text-center text-xs tracking-[0.3em] text-transparent uppercase">{names}</p>
       </div>
     </div>
