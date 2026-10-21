@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import {
   createLandingPage,
-  getLandingPageByUserAndSlug,
+  getLandingPageBasicByUserAndSlug,
   getUserRole,
   isUniqueViolation,
+  setLandingPageProBySlug,
   updateLandingPage,
   upsertUser,
 } from "@/lib/db";
@@ -18,6 +19,7 @@ import {
   MAX_STORY_TEXT_LEN,
   MAX_STORY_TITLE_LEN,
   resolveTemplate,
+  safeHttpUrl,
   toInvitationContent,
 } from "@/lib/invitation";
 
@@ -58,13 +60,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/**
+ * True bila URL aman dipakai di href/src (hanya http/https).
+ *
+ * Memakai `safeHttpUrl` dari lib/invitation — helper yang sama dengan
+ * yang dipakai saat render — sehingga aturan "hanya http(s)" tidak
+ * bisa berbeda antara jalur tulis dan jalur baca.
+ */
 function isHttpUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
+  return safeHttpUrl(value) !== "";
 }
 
 /** Kembalikan pesan error bila ada URL berbahaya di content, null bila aman. */
@@ -198,22 +202,30 @@ export async function POST(req: Request) {
 
   // Pastikan baris user ada (FK landing_pages.user_id -> users.clerk_id)
   const user = await currentUser();
-  const email = user?.emailAddresses[0]?.emailAddress;
+  const email = user?.emailAddresses[0]?.emailAddress ?? null;
   if (email) {
     await upsertUser({ id: userId, clerk_id: userId, email });
   }
 
-  const existing = await getLandingPageByUserAndSlug(userId, slug);
+  // Hanya butuh `is_pro` (untuk gate entitlement) — pakai query ringan
+  // tanpa `content_json` (bisa 512 KB) supaya tidak menarik JSONB yang
+  // justru sedang dikirim ulang oleh request ini.
+  const existing = await getLandingPageBasicByUserAndSlug(userId, slug);
 
   // Entitlement: halaman baru selalu Free; update mengikuti status saat ini.
-  // Admin & development/lokal selalu lolos sebagai Pro (bypass paywall).
+  // Admin & surel yang terdaftar di PRO_BYPASS_EMAILS selalu lolos sebagai
+  // Pro (bypass paywall). Perhatikan: surel diambil dari Clerk (authoritative),
+  // bukan dari body request.
   const role = await getUserRole(userId);
+  const isProPage = existing?.is_pro ?? false;
+  const proAccess = hasProAccess({
+    isPro: isProPage,
+    isAdmin: role === "admin",
+    email,
+  });
   const normalized = toInvitationContent(contentJson);
   const entitlementError = checkSaveEntitlements({
-    isPro: hasProAccess({
-      isPro: existing?.is_pro ?? false,
-      isAdmin: role === "admin",
-    }),
+    isPro: proAccess,
     templateType,
     galleryCount: normalized.galleryImages.length,
     hasBacksound: normalized.backsoundUrl.trim() !== "",
@@ -226,23 +238,57 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: entitlementError }, { status: 403 });
   }
 
+  /**
+   * Admin / surel PRO_BYPASS_EMAILS mendapat akses Pro TANPA pembayaran.
+   * Kalau akses itu hanya hidup di memori (hasil hasProAccess), kolom
+   * `is_pro` di DB tetap false — sehingga render publik /p/[slug] yang
+   * membaca `page.is_pro` tetap merender versi Free, dashboard
+   * menampilkan badge Pro, dan checkout menjawab "alreadyPro". Ketiga
+   * itu tidak konsisten.
+   *
+   * Diperbaiki dengan menyelaraskan model datanya: begitu akses Pro
+   * diberikan lewat admin/bypass, `is_pro = true` ikut dipersistkan pada
+   * baris halaman tersebut. Render publik, dashboard, dan DB lalu
+   * memakai satu sumber kebenaran.
+   *
+   * Catatan: `proAccess` true HANYA lewat bypass/admin bila halaman ini
+   * belum Pro (`isProPage` false). Kalau halamannya sudah Pro, tidak ada
+   * penulisan tambahan yang perlu dilakukan.
+   */
+  const needsProPersist = proAccess && !isProPage;
+
   if (existing) {
     const updated = await updateLandingPage(userId, slug, {
       title,
       template_type: templateType,
       contentJson,
     });
-    return NextResponse.json({ ok: true, created: false, page: updated });
+    if (!updated) {
+      return NextResponse.json(
+        { error: "Landing page tidak ditemukan" },
+        { status: 404 }
+      );
+    }
+    let page = updated;
+    if (needsProPersist) {
+      await setLandingPageProBySlug(slug, true);
+      page = { ...updated, is_pro: true };
+    }
+    return NextResponse.json({ ok: true, created: false, page });
   }
 
   try {
-    const created = await createLandingPage({
+    let created = await createLandingPage({
       user_id: userId,
       title,
       slug,
       template_type: templateType,
       content_json: contentJson,
     });
+    if (needsProPersist) {
+      await setLandingPageProBySlug(slug, true);
+      created = { ...created, is_pro: true };
+    }
     return NextResponse.json(
       { ok: true, created: true, page: created },
       { status: 201 }

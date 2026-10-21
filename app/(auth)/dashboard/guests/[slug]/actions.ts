@@ -6,12 +6,14 @@ import {
   addGuest,
   deleteGuestById,
   deleteWishById,
-  getLandingPageByUserAndSlug,
+  getLandingPageBasicByUserAndSlug,
 } from "@/lib/db";
 
 async function requireOwner(userId: string | null, slug: string) {
   if (!userId) throw new Error("Unauthorized: silakan login terlebih dahulu");
-  const page = await getLandingPageByUserAndSlug(userId, slug);
+  // Cukup memastikan barisnya ada milik user ini — query ringan tanpa
+  // `content_json` (bisa 512 KB per baris).
+  const page = await getLandingPageBasicByUserAndSlug(userId, slug);
   if (!page) throw new Error("Landing page tidak ditemukan");
   return page;
 }

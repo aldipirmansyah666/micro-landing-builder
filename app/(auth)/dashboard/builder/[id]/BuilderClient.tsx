@@ -22,6 +22,8 @@ import {
   MessageCircle,
   Minus,
   Music,
+  Pause,
+  Play,
   Plus,
   RotateCcw,
   Save,
@@ -30,6 +32,7 @@ import {
 } from "lucide-react";
 import type { LandingPage } from "@/lib/db";
 import {
+  applyRenderEntitlements,
   FREE_TEMPLATE_ID,
   maxGallery,
   type Plan,
@@ -41,6 +44,7 @@ import {
   MAX_STORY_TEXT_LEN,
   MAX_STORY_TITLE_LEN,
   resolveTemplate,
+  safeHttpUrl,
   slugify,
   toInvitationContent,
   type GiftAccount,
@@ -51,8 +55,13 @@ import { InvitationTemplate } from "@/components/templates/InvitationTemplate";
 import { CompactTemplateSelector } from "@/components/templates/TemplateCatalog";
 import { SafeImg } from "@/components/templates/shared";
 import { UpgradeProButton } from "@/components/billing/UpgradeProModal";
+import {
+  BACKSOUND_PRESETS,
+  isPresetBacksoundUrl,
+  type BacksoundPreset,
+} from "@/lib/backsounds";
 import { TEMPLATE_REGISTRY, templateLabel } from "@/lib/templates";
-import { copyText, waShareText } from "@/app/dashboard/QuickActions";
+import { copyText, waShareText } from "../../QuickActions";
 
 const inputClass =
   "w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-400";
@@ -99,6 +108,214 @@ function Accordion({
         />
       </button>
       {open && <div className="space-y-4 p-4">{children}</div>}
+    </div>
+  );
+}
+
+/**
+ * Audio picker backsound khusus PRO: mode "Preset Lagu" (daftar preset
+ * dengan preview play/pause) atau "Upload Custom MP3" (file MP3 sendiri).
+ * Preview memakai satu elemen Audio bersama agar tidak ada dua lagu
+ * yang berbunyi bersamaan; dihentikan saat komponen dilepas.
+ */
+function BacksoundPicker({
+  value,
+  uploadingAudio,
+  uploadDisabled,
+  fileInputRef,
+  onPick,
+  onClear,
+  onUploadFile,
+}: {
+  value: string;
+  uploadingAudio: boolean;
+  uploadDisabled: boolean;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  onPick: (url: string) => void;
+  onClear: () => void;
+  onUploadFile: (file: File) => void;
+}) {
+  const [mode, setMode] = useState<"preset" | "custom">(() =>
+    value.trim() === "" || isPresetBacksoundUrl(value) ? "preset" : "custom"
+  );
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(
+    () => () => {
+      previewAudioRef.current?.pause();
+      previewAudioRef.current = null;
+    },
+    []
+  );
+
+  const selectedId =
+    BACKSOUND_PRESETS.find((p) => p.url === value.trim())?.id ?? null;
+  const trimmed = value.trim();
+
+  function togglePreview(preset: BacksoundPreset) {
+    const current = previewAudioRef.current;
+    if (previewId === preset.id && current) {
+      current.pause();
+      setPreviewId(null);
+      return;
+    }
+    current?.pause();
+    const next = new Audio(preset.url);
+    next.preload = "none";
+    next.onended = () => setPreviewId(null);
+    previewAudioRef.current = next;
+    setPreviewId(preset.id);
+    void next.play().catch(() => setPreviewId(null));
+  }
+
+  return (
+    <div>
+      <span className={labelClass}>Backsound Musik 🔒 PRO</span>
+      <div className="mb-3 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => setMode("preset")}
+          aria-pressed={mode === "preset"}
+          className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl border text-sm font-medium transition-colors ${
+            mode === "preset"
+              ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+              : "border-zinc-200 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          }`}
+        >
+          <Music className="h-4 w-4" />
+          Preset Lagu
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("custom")}
+          aria-pressed={mode === "custom"}
+          className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl border text-sm font-medium transition-colors ${
+            mode === "custom"
+              ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+              : "border-zinc-200 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          }`}
+        >
+          <ImagePlus className="h-4 w-4" />
+          Custom MP3
+        </button>
+      </div>
+
+      {mode === "preset" ? (
+        <ul className="space-y-2">
+          {BACKSOUND_PRESETS.map((preset) => {
+            const isSelected = selectedId === preset.id;
+            const isPreviewing = previewId === preset.id;
+            return (
+              <li
+                key={preset.id}
+                className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
+                  isSelected
+                    ? "border-zinc-900 bg-zinc-50 dark:border-zinc-100 dark:bg-zinc-900"
+                    : "border-zinc-200 dark:border-zinc-800"
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => togglePreview(preset)}
+                  aria-label={
+                    isPreviewing
+                      ? `Hentikan preview ${preset.title}`
+                      : `Dengarkan preview ${preset.title}`
+                  }
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-white transition-transform hover:scale-105 dark:bg-zinc-100 dark:text-zinc-900"
+                >
+                  {isPreviewing ? (
+                    <Pause className="h-4 w-4" />
+                  ) : (
+                    <Play className="h-4 w-4 translate-x-[1px]" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onPick(preset.url)}
+                  className="min-w-0 flex-1 text-left"
+                >
+                  <p className="truncate text-sm font-medium">
+                    {preset.title}
+                    {isSelected && (
+                      <Check className="ml-1.5 inline h-3.5 w-3.5 text-emerald-600" />
+                    )}
+                  </p>
+                  <p className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                    <span className="inline-flex shrink-0 items-center rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase dark:bg-zinc-800">
+                      {preset.category}
+                    </span>
+                    <span className="truncate">{preset.artist}</span>
+                  </p>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <input
+              value={value}
+              onChange={(e) => onPick(e.target.value)}
+              placeholder="https://.../lagu.mp3"
+              inputMode="url"
+              className={inputClass}
+            />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/mpeg,audio/mp3"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (fileInputRef.current) fileInputRef.current.value = "";
+                if (f) onUploadFile(f);
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadDisabled}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              aria-label="Upload file MP3 custom"
+              title="Upload file MP3 (maks 10MB)"
+            >
+              {uploadingAudio ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Music className="h-4 w-4" />
+              )}
+            </button>
+          </div>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            Tempel URL MP3 langsung atau upload file MP3 (maks 10MB).
+          </p>
+        </div>
+      )}
+
+      {trimmed !== "" && (
+        <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+          <p className="min-w-0 flex-1 truncate text-zinc-600 dark:text-zinc-400">
+            Aktif:{" "}
+            {BACKSOUND_PRESETS.find((p) => p.url === trimmed)?.title ??
+              trimmed}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              previewAudioRef.current?.pause();
+              setPreviewId(null);
+              onClear();
+            }}
+            className="inline-flex shrink-0 items-center gap-1 font-medium text-red-600 dark:text-red-400"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Hapus
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -307,9 +524,34 @@ export function BuilderClient({
   /** Deep-link ?template= dari landing page (hanya dipakai mode "new"). */
   initialTemplate?: string;
 }) {
+  /**
+   * Status paket effective. Dihitung di awal komponen karena dipakai
+   * oleh seed di bawah (filter entitlement) maupun logika form.
+   */
+  const isPro = plan === "pro";
+
+  /**
+   * Seed state konten dari data tersimpan.
+   *
+   * PENTING: applyRenderEntitlements() diterapkan DI SINI, bukan hanya
+   * saat render publik. Alasannya: konten PRO yang tertinggal di DB
+   * (mis. sisa "Cerita & Sapaan" dari akun yang sebelumnya Pro, atau
+   * `greeting: ""` hasil user mengosongkan field) akan membuat server
+   * menolak penyimpanan dengan 403 — padahal UI untuk menghapus field
+   * PRO itu disembunyikan pada paket Free, sehingga user tidak pernah
+   * punya jalan keluar (halaman terkunci permanen).
+   *
+   * applyRenderEntitlements() menyetel field PRO menjadi `undefined`
+   * (key hilang saat JSON.stringify) dan mengosongkan backsound, sehingga
+   * payload yang dikirim server bebas field PRO dan lolos checkSaveEntitlements().
+   */
   const seed = useMemo(
-    () => toInvitationContent(initial?.content_json),
-    [initial]
+    () =>
+      applyRenderEntitlements(
+        toInvitationContent(initial?.content_json),
+        isPro
+      ),
+    [initial, isPro]
   );
   const [title, setTitle] = useState(initial?.title ?? "");
   const [slug, setSlug] = useState(initial?.slug ?? "");
@@ -419,7 +661,6 @@ export function BuilderClient({
     }));
   }
 
-  const isPro = plan === "pro";
   const galleryLimit = maxGallery(plan);
   // Real-Time Multi-Template Preview:
   // - `templateType` adalah draft pilihan pengguna (boleh PRO walau akun Free)
@@ -433,6 +674,18 @@ export function BuilderClient({
   const isPreviewProTemplate =
     !isPro && previewTemplateType !== FREE_TEMPLATE_ID;
   const [proInfoTemplate, setProInfoTemplate] = useState<string | null>(null);
+
+  /**
+   * Preview memakai konten yang dinormalisasi ulang lewat
+   * toInvitationContent() — choke point yang sama dengan halaman publik
+   * /p/[slug]. Dengan begitu URL non-http(s) yang diketik manual di form
+   * (mis. "javascript:...") tidak pernah sampai ke href/src di preview,
+   * persis seperti perilaku produksi.
+   */
+  const previewContent = useMemo(
+    () => toInvitationContent(content),
+    [content]
+  );
 
   function handleTemplateSelect(id: string) {
     const normalized = resolveTemplate(id);
@@ -905,62 +1158,50 @@ export function BuilderClient({
                 )}
               </div>
             </Field>
-            <Field label="URL Backsound Audio 🔒 PRO">
-              <div className="flex items-center gap-2">
-                <input
-                  value={content.backsoundUrl}
-                  disabled={!isPro}
-                  onChange={(e) => patch({ backsoundUrl: e.target.value })}
-                  placeholder={
-                    isPro
-                      ? "https://.../backsound.mp3"
-                      : "Khusus PRO — upgrade untuk mengaktifkan"
-                  }
-                  inputMode="url"
-                  className={`${inputClass} disabled:opacity-50`}
-                />
-                <input
-                  ref={audioRef}
-                  type="file"
-                  accept="audio/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (audioRef.current) audioRef.current.value = "";
-                    if (f)
-                      void runUpload("audio", async () => {
-                        const r = await uploadFile(f);
-                        patch({ backsoundUrl: r.url });
-                        if (r.warning)
-                          setMessage({ type: "error", text: r.warning });
-                      });
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => audioRef.current?.click()}
-                  disabled={uploading !== null || !isPro}
-                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                  aria-label="Upload file audio"
-                  title={
-                    isPro
-                      ? "Upload file audio (MP3/Ogg/WAV, maks 10MB)"
-                      : "Khusus PRO"
-                  }
-                >
-                  {uploading === "audio" ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+            {isPro ? (
+              <BacksoundPicker
+                value={content.backsoundUrl}
+                uploadingAudio={uploading === "audio"}
+                uploadDisabled={uploading !== null}
+                fileInputRef={audioRef}
+                onPick={(url) => patch({ backsoundUrl: url })}
+                onClear={() => patch({ backsoundUrl: "" })}
+                onUploadFile={(f) =>
+                  void runUpload("audio", async () => {
+                    const r = await uploadFile(f);
+                    patch({ backsoundUrl: r.url });
+                    if (r.warning)
+                      setMessage({ type: "error", text: r.warning });
+                  })
+                }
+              />
+            ) : (
+              <div className="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/30">
+                <div className="flex items-center justify-between gap-2 px-4 py-3.5">
+                  <p className="text-sm font-semibold tracking-tight">
+                    🎵 Musik & Backsound
+                  </p>
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-400 px-2.5 py-1 text-[10px] font-bold text-amber-950">
+                    <Lock className="h-3 w-3" />
+                    PRO
+                  </span>
+                </div>
+                <div className="space-y-3 px-4 pb-4">
+                  <p className="text-xs leading-6 text-amber-900 dark:text-amber-200">
+                    Fitur khusus pengguna PRO — Upgrade seharga Rp 49.000
+                    untuk mengaktifkan preset lagu & upload MP3 custom
+                    sebagai backsound undangan.
+                  </p>
+                  {savedSlug ? (
+                    <UpgradeProButton slug={savedSlug} />
                   ) : (
-                    <Music className="h-4 w-4" />
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                      Simpan undangan terlebih dahulu untuk membuka upgrade.
+                    </p>
                   )}
-                </button>
+                </div>
               </div>
-              {!isPro && (
-                <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
-                  Backsound musik khusus PRO.
-                </p>
-              )}
-            </Field>
+            )}
             <Field
               label={`Galeri Foto (${content.galleryImages.length}/${galleryLimit})`}
             >
@@ -1019,7 +1260,7 @@ export function BuilderClient({
                   {content.galleryImages.map((url) => (
                     <div key={url} className="group relative">
                       <SafeImg
-                        src={url}
+                        src={safeHttpUrl(url)}
                         alt="Galeri"
                         fallbackLabel="Gagal dimuat"
                         className="aspect-square w-full rounded-xl object-cover"
@@ -1242,7 +1483,7 @@ export function BuilderClient({
                 key={`${previewKey}-${previewOpened}`}
                 title={title || "Undangan Digital"}
                 templateType={previewTemplateType}
-                content={content}
+                content={previewContent}
                 guestName={previewGuest}
                 defaultOpened={previewOpened}
                 rsvpSlot={

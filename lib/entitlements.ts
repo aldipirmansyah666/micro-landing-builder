@@ -16,32 +16,63 @@ export function planOf(isPro: boolean): Plan {
 }
 
 /**
- * True saat berjalan di development/lokal (`next dev`). Di production
- * (termasuk Cloudflare Worker hasil build) selalu false — akses Pro di
- * sana hanya lewat status Pro halaman atau role admin.
+ * Daftar surel yang boleh memakai akses Pro tanpa pembayaran.
+ *
+ * Format: `PRO_BYPASS_EMAILS=dev@contoh.com,qa@contoh.com`
+ * (pisah koma, case-insensitive, spasi diabaikan). Variabel kosong =
+ * tidak ada yang boleh bypass.
+ *
+ * Berlaku di SEMUA environment (production termasuk) karena tujuannya
+ * adalah allowlist EKSPLISIT yang bisa diaudit — bukan pintasan
+ * otomatis. Konsekuensinya:
+ * - JANGAN pernah memasukkan surel pelanggan nyata.
+ * - Kosongkan variabel ini di production kecuali memang ada akun
+ *   QA/internal yang perlu akses Pro tanpa pembayaran.
+ * - Setiap pemakaian dicatat ke log (lihat bawah) supaya mudah diaudit.
+ *
+ * PENTING: jangan pernah menggantinya dengan pemeriksaan NODE_ENV.
+ * `NODE_ENV=development` yang salah set di production akan memberi
+ * akses Pro ke SEMUA pengguna (kill-switch paywall global).
  */
-export function isDevEnvironment(): boolean {
-  return process.env.NODE_ENV === "development";
+export function isBypassAllowed(email?: string | null): boolean {
+  const raw = process.env.PRO_BYPASS_EMAILS;
+  if (!raw) return false;
+  const allow = raw
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter((e) => e !== "");
+  if (allow.length === 0) return false;
+  const normalized = email?.trim().toLowerCase();
+  if (!normalized || !allow.includes(normalized)) return false;
+  console.info(
+    `[entitlements] bypass Pro dipakai oleh ${normalized} (PRO_BYPASS_EMAILS)`
+  );
+  return true;
 }
 
 /**
  * Satu-satunya penentu akses Pro di aplikasi (bypass terpusat):
  * - halaman sudah Pro, ATAU
  * - user adalah admin, ATAU
- * - berjalan di development/lokal.
+ * - surel user terdaftar di `PRO_BYPASS_EMAILS` (lihat isBypassAllowed).
  *
  * Pakai helper ini di setiap gate fitur Pro (builder plan, validasi save,
- * tombol upgrade, checkout) agar admin/dev selalu dapat akses penuh tanpa
- * paywall. Render publik (/p/[slug]) TIDAK memakai ini karena tidak ada
- * konteks user — ia tetap mengikuti status Pro halaman itu sendiri.
+ * tombol upgrade, checkout) agar admin/bypass selalu dapat akses penuh
+ * tanpa paywall. Render publik (/p/[slug]) TIDAK memakai ini karena tidak
+ * ada konteks user — ia tetap mengikuti status Pro halaman itu sendiri.
+ *
+ * `email` wajib diisi untuk bisa menggunakan bypass allowlist; pemanggil
+ * yang tidak punya konteks surel (mis. halaman publik) tidak akan pernah
+ * mendapat bypass.
  */
 export function hasProAccess(input: {
   isPro: boolean;
   isAdmin?: boolean;
+  email?: string | null;
 }): boolean {
   if (input.isPro) return true;
   if (input.isAdmin === true) return true;
-  return isDevEnvironment();
+  return isBypassAllowed(input.email);
 }
 
 export function maxGallery(plan: Plan): number {
@@ -94,6 +125,13 @@ export function checkSaveEntitlements(input: {
  * halaman Free selalu tanpa backsound, galeri dibatasi, tanpa sisa
  * konten PRO walau data di DB memilikinya — termasuk sapaan kustom,
  * pesan penutup, dan timeline cerita.
+ *
+ * CATATAN KEAMANAN: `content` di sini DIHARUSKAN sudah melewati
+ * `toInvitationContent()` (lib/invitation.ts) — satu-satunya pintu
+ * masuk data konten ke lapisan render. Fungsi itu sudah menyanitasi
+ * seluruh properti URL via `safeHttpUrl()`, sehingga nilai returned
+ * di sini bebas `javascript:`/`data:`. Jangan pernah memanggil
+ * applyRenderEntitlements dengan objek konten mentah dari database.
  */
 export function applyRenderEntitlements(
   content: InvitationContent,

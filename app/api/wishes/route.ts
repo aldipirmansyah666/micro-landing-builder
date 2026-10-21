@@ -33,10 +33,33 @@ function wishRateLimitOk(key: string): boolean {
   return true;
 }
 
+/**
+ * IP klien dari header yang diisi INFRASTRUKTUR, bukan oleh klien.
+ *
+ * Kenapa `x-forwarded-for` mentah tidak boleh dipakai: klien bebas
+ * menyisipkan nilai apa pun di header itu, dan elemen PERTAMA adalah yang
+ * paling mudah dipalsukan (proxy biasanya menambahkan IP asli di akhir).
+ * Mengambil elemen pertama membuat rate limit bisa dilewati dengan
+ * memutar-mutar IP palsu pada setiap request.
+ *
+ * Header tepercaya:
+ * - `cf-connecting-ip` : Cloudflare Workers/Pages — diisi edge, tidak bisa
+ *   disetel klien.
+ * - `x-real-ip`         : Vercel dan sebagian reverse proxy — ditulis
+ *   ulang oleh platform dengan IP klien asli.
+ *
+ * Catatan: bila deployment tidak menyediakan salah satu header di atas,
+ * IP tidak bisa ditentukan dengan trustworthy, sehingga rate limit di
+ * sisi aplikasi tidak sepenuhnya andal. Untuk produksi, pindahkan ke
+ * store persisten (mis. Upstash / Redis) dengan counter per-kunci.
+ */
 function clientIp(req: Request): string {
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]!.trim();
-  return req.headers.get("x-real-ip")?.trim() ?? "unknown";
+  const cfConnectingIp = req.headers.get("cf-connecting-ip")?.trim();
+  if (cfConnectingIp) return cfConnectingIp;
+  const realIp = req.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+  // Tidak ada header tepercaya → kunci bersama. Lebih ketat (bukan lebih longgar).
+  return "unknown";
 }
 
 export async function GET(req: Request) {

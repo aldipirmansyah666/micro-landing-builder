@@ -266,6 +266,23 @@ export interface LandingPageBasic {
 }
 
 /**
+ * Metadata landing page tanpa `content_json`.
+ *
+ * `content_json` adalah JSONB yang bisa mencapai 512 KB per baris. Untuk
+ * daftar/ringkasan (dashboard, respons API) field itu tidak pernah dipakai
+ * — memuatnya berarti mentransfer ratusan KB per halaman tanpa dipakai.
+ */
+export interface LandingPageSummary {
+  id: number;
+  user_id: string;
+  title: string;
+  slug: string;
+  template_type: string;
+  is_pro: boolean;
+  created_at: string;
+}
+
+/**
  * Query ringan untuk verifikasi kepemilikan/checkout/pre-check publik.
  * SENGAJA tidak membawa `content_json` (bisa 512KB) — hemat bandwidth Neon.
  */
@@ -320,14 +337,22 @@ export async function toggleProStatus(
   return updated !== undefined;
 }
 
-export async function getLandingPagesByUserId(
+/**
+ * Daftar landing page milik user — HANYA metadata.
+ *
+ * SENGAJA tidak memakai `SELECT *`: `content_json` bisa 512 KB per baris,
+ * sehingga 20 halaman = beberapa MB yang ditransfer dari database lalu
+ * dibuang di memori server. Kartu dashboard hanya butuh metadata.
+ */
+export async function getLandingPageSummariesByUserId(
   userId: string
-): Promise<LandingPage[]> {
+): Promise<LandingPageSummary[]> {
   const rows = (await sql`
-    SELECT * FROM landing_pages
+    SELECT id, user_id, title, slug, template_type, is_pro, created_at
+    FROM landing_pages
     WHERE user_id = ${userId}
     ORDER BY created_at DESC;
-  `) as LandingPage[];
+  `) as LandingPageSummary[];
   return rows;
 }
 
@@ -352,9 +377,17 @@ export async function getLandingPageByUserAndSlug(
   return rows[0];
 }
 
+/**
+ * Buat landing page baru.
+ *
+ * `RETURNING` sengaja TIDAK menyertakan `content_json`: isinya baru saja
+ * dikirim klien, jadi mengembalikannya lagi hanya menggandakan payload
+ * respons (bisa 512 KB) tanpa ada yang memakainya. Yang dikembalikan
+ * cukup metadata + `slug`/`template_type` kanonik yang dibutuhkan klien.
+ */
 export async function createLandingPage(
   input: CreateLandingPageInput
-): Promise<LandingPage> {
+): Promise<LandingPageSummary> {
   const rows = (await sql`
     INSERT INTO landing_pages (user_id, title, slug, template_type, content_json, is_pro)
     VALUES (
@@ -365,13 +398,19 @@ export async function createLandingPage(
       ${JSON.stringify(input.content_json ?? {})}::jsonb,
       ${input.is_pro ?? false}
     )
-    RETURNING *;
-  `) as LandingPage[];
+    RETURNING id, user_id, title, slug, template_type, is_pro, created_at;
+  `) as LandingPageSummary[];
   const created = rows[0];
   if (!created) throw new Error("Gagal membuat landing page");
   return created;
 }
 
+/**
+ * Perbarui landing page milik user.
+ *
+ * Sama seperti createLandingPage: `RETURNING` tanpa `content_json` agar
+ * respons API tidak memuat ulang JSONB yang baru saja dikirim.
+ */
 export async function updateLandingPage(
   userId: string,
   slug: string,
@@ -380,15 +419,15 @@ export async function updateLandingPage(
     template_type?: string;
     contentJson: Record<string, unknown>;
   }
-): Promise<LandingPage | undefined> {
+): Promise<LandingPageSummary | undefined> {
   const rows = (await sql`
     UPDATE landing_pages
     SET title = ${input.title},
         template_type = ${input.template_type ?? "minimalist"},
         content_json = ${JSON.stringify(input.contentJson)}::jsonb
     WHERE user_id = ${userId} AND slug = ${slug}
-    RETURNING *;
-  `) as LandingPage[];
+    RETURNING id, user_id, title, slug, template_type, is_pro, created_at;
+  `) as LandingPageSummary[];
   return rows[0];
 }
 
@@ -406,16 +445,24 @@ export async function updateLandingPageContent(
   return rows[0];
 }
 
+/**
+ * Ubah status is_pro sebuah landing page berdasarkan slug.
+ *
+ * `RETURNING` sengaja TIDAK menyertakan `content_json`: fungsi ini
+ * dipanggil pada jalur hot (admin toggle & persistensi Pro saat save),
+ * dan `content_json` bisa 512 KB per baris. Yang dibutuhkan pemanggil
+ * hanya konfirmasi bahwa baris ada + nilai is_pro terbaru.
+ */
 export async function setLandingPageProBySlug(
   slug: string,
   isPro: boolean = true
-): Promise<LandingPage | undefined> {
+): Promise<{ id: number; slug: string; is_pro: boolean } | undefined> {
   const rows = (await sql`
     UPDATE landing_pages
     SET is_pro = ${isPro}
     WHERE slug = ${slug}
-    RETURNING *;
-  `) as LandingPage[];
+    RETURNING id, slug, is_pro;
+  `) as { id: number; slug: string; is_pro: boolean }[];
   return rows[0];
 }
 

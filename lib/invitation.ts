@@ -204,6 +204,54 @@ function optStr(v: unknown): string | undefined {
   return typeof v === "string" ? v : undefined;
 }
 
+/**
+ * Sanitasi URL untuk konteks render (href/src).
+ *
+ * Hanya protokol `http:` dan `https:` yang diizinkan. Nilai seperti
+ * `javascript:`, `data:`, `vbscript:`, `blob:`, URL protocol-relative
+ * (`//host/path`), atau URL relatif ditolak → dikembalikan string kosong
+ * sehingga elemen `<a>`/`<img>`/`<audio>` tidak dirender sama sekali.
+ *
+ * PENTING: ini adalah CHOKE POINT sanitasi URL. Seluruh konten yang
+ * dibaca dari database dinormalisasi lewat `toInvitationContent()`, yang
+ * memanggil helper ini untuk setiap properti URL. Dengan begitu tidak
+ * ada jalur render (halaman publik /p/[slug], preview builder, katalog
+ * template, dan applyRenderEntitlements) yang bisa memakai URL
+ * berbahaya — termasuk baris lama yang ditulis sebelum validasi ada,
+ * dan primitive tulis DB yang tidak memvalidasi.
+ */
+export function safeHttpUrl(value: unknown): string {
+  if (typeof value !== "string") return "";
+  // Trim DULU: parser URL WHATWG membuang whitespace di awal/akhir, jadi
+  // " javascript:alert(1) " akan ter-parse sebagai skema "javascript:".
+  const trimmed = value.trim();
+  if (trimmed === "") return "";
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    // URL relatif / malformed → tolak.
+    return "";
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+  return trimmed;
+}
+
+/**
+ * Normalisasi daftar URL (galeri). Entri non-http(s) dibuang, bukan
+ * sekadar dibiarkan kosong supaya slot galeri tidak menampilkan gambar
+ * rusak.
+ */
+function toUrlList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  for (const item of value) {
+    const url = safeHttpUrl(item);
+    if (url !== "") out.push(url);
+  }
+  return out;
+}
+
 /** Normalisasi daftar cerita: entri non-objek dibuang, string dikoerse. */
 function toStories(v: unknown): StoryEntry[] | undefined {
   if (!Array.isArray(v)) return undefined;
@@ -246,6 +294,14 @@ function unwrapContentJson(raw: unknown): unknown {
  * halaman publik /p/[slug] tampil kosong padahal preview builder normal,
  * karena preview memakai state objek di memori sedangkan halaman publik
  * membaca hasil round-trip database.
+ *
+ * KONTRAK KEAMANAN: fungsi ini adalah satu-satunya pintu masuk data
+ * konten ke lapisan render. Setiap properti URL (akadMapsUrl,
+ * receptionMapsUrl, heroImage/coverImageUrl/imageUrl, backsoundUrl,
+ * galleryImages) disanitasi lewat `safeHttpUrl()`, sehingga `javascript:`,
+ * `data:`, dan URL non-http(s) tidak pernah sampai ke `href`/`src`.
+ * Jangan pernah membaca content_json mentah di komponen — gunakan
+ * fungsi ini.
  */
 export function toInvitationContent(raw: unknown): InvitationContent {
   const unwrapped = unwrapContentJson(raw);
@@ -253,13 +309,12 @@ export function toInvitationContent(raw: unknown): InvitationContent {
     return { ...EMPTY_INVITATION };
   }
   const c = unwrapped as Record<string, unknown>;
+  // Semua URL dinormalisasi lewat safeHttpUrl() — entri non-http(s)
+  // (javascript:/data:/relatif) dibuang saat DATA DIPBACA, bukan hanya
+  // saat disimpan. Lihat catatan di safeHttpUrl.
   const gallery = Array.isArray(c.galleryImages)
-    ? c.galleryImages.filter((u): u is string => typeof u === "string" && u !== "")
-    : Array.isArray(c.galleryUrls)
-      ? (c.galleryUrls as unknown[]).filter(
-          (u): u is string => typeof u === "string" && u !== ""
-        )
-      : [];
+    ? toUrlList(c.galleryImages)
+    : toUrlList(c.galleryUrls);
   const accounts = Array.isArray(c.accounts)
     ? c.accounts
         .filter(
@@ -290,15 +345,17 @@ export function toInvitationContent(raw: unknown): InvitationContent {
     akadDate: str(c.akadDate) || legacyDate,
     akadTime: str(c.akadTime),
     akadVenue: str(c.akadVenue) || legacyVenue,
-    akadMapsUrl: str(c.akadMapsUrl) || legacyMaps,
+    akadMapsUrl: safeHttpUrl(c.akadMapsUrl) || safeHttpUrl(legacyMaps),
     receptionDate: str(c.receptionDate) || legacyDate,
     receptionTime: str(c.receptionTime),
     receptionVenue: str(c.receptionVenue) || legacyVenue,
-    receptionMapsUrl: str(c.receptionMapsUrl) || legacyMaps,
+    receptionMapsUrl: safeHttpUrl(c.receptionMapsUrl) || safeHttpUrl(legacyMaps),
     heroImage:
-      str(c.heroImage) || str(c.coverImageUrl) || str(c.imageUrl),
+      safeHttpUrl(c.heroImage) ||
+      safeHttpUrl(c.coverImageUrl) ||
+      safeHttpUrl(c.imageUrl),
     galleryImages: gallery,
-    backsoundUrl: str(c.backsoundUrl),
+    backsoundUrl: safeHttpUrl(c.backsoundUrl),
     accounts,
     greeting: optStr(c.greeting),
     closingNote: optStr(c.closingNote),

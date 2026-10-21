@@ -2,6 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import {
   getLandingPageBySlug,
+  getOrderByOrderId,
   setLandingPageProBySlug,
   upsertPaidOrder,
 } from "@/lib/db";
@@ -9,17 +10,30 @@ import {
 /**
  * Webhook pembayaran (Midtrans & Xendit) untuk upgrade landing page ke Pro.
  *
- * Konvensi order ID yang didukung: `pro-<slug>` atau `pro-<slug>-<timestamp>`
- * (cth: `pro-andi-sinta-1730000000000`), atau sertakan slug lewat metadata:
- * Midtrans `custom_field1` / Xendit `metadata.slug`.
+ * Konvensi order ID (satu-satunya sumber slug): `pro-<slug>` atau
+ * `pro-<slug>-<timestamp>` (cth: `pro-andi-sinta-1730000000000`).
+ *
+ * KEAMANAN — slug TIDAK boleh diambil dari field yang tidak ditandatangani:
+ * `signature_key` Midtrans hanya mencakup
+ * `order_id + status_code + gross_amount + serverKey`. Field seperti
+ * `custom_field1` (Midtrans) atau `metadata.slug` (Xendit) TIDAK ikut
+ * ditandatangani, sehingga siapa pun yang memegang satu notifikasi
+ * bertanda tangan sah bisa menulis ulang field itu untuk mengarahkan
+ * upgrade ke halaman orang lain. Karena itu field-field tersebut
+ * diabaikan sepenuhnya; target upgrade hanya boleh berasal dari
+ * `order_id`/`external_id` yang terverifikasi, lalu dicocokkan dengan
+ * baris `orders` di database.
  *
  * Env wajib (fail-closed: ditolak 401 bila belum di-set):
  * - MIDTRANS_SERVER_KEY  : verifikasi `signature_key` Midtrans
  * - XENDIT_CALLBACK_TOKEN: dicocokkan dengan header `x-callback-token`
  *
- * Env opsional:
+ * Env wajib (fail-closed: upgrade ditolak 503 bila kosong/tidak valid):
  * - PRO_PRICE_IDR : nominal minimal (rupiah) agar upgrade diproses.
- *   Bila tidak di-set, cek nominal dilewati dengan peringatan di log.
+ *   Tanpa nilai valid, cek nominal TIDAK boleh dilewati — transaksi
+ *   ber-nominal sembarang akan menaikkan is_pro. Respons 503 membuat
+ *   payment provider me-retry; order juga belum ditandai paid sehingga
+ *   tidak ada state "paid tapi belum Pro" yang menggantung.
  */
 
 // Status yang dianggap "pembayaran berhasil" (case-insensitive).
@@ -33,6 +47,10 @@ interface WebhookBody {
   status_code?: unknown;
   gross_amount?: unknown;
   signature_key?: unknown;
+  /**
+   * TIDAK ditandatangani — SENGAJA DIABAIKAN saat menentukan target
+   * upgrade. Lihat catatan keamanan di header file.
+   */
   custom_field1?: unknown;
   // Xendit / generik
   external_id?: unknown;
@@ -40,6 +58,10 @@ interface WebhookBody {
   id?: unknown;
   amount?: unknown;
   currency?: unknown;
+  /**
+   * TIDAK ditandatangani — SENGAJA DIABAIKAN saat menentukan target
+   * upgrade. Lihat catatan keamanan di header file.
+   */
   metadata?: unknown;
 }
 
@@ -49,19 +71,6 @@ function asString(value: unknown): string {
   // String() eksplisit agar hash signature tidak jadi string kosong.
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
   if (typeof value === "boolean") return String(value);
-  return "";
-}
-
-/** Ambil slug dari metadata/custom field bila tersedia. */
-function slugFromMetadata(body: WebhookBody): string {
-  const custom = asString(body.custom_field1).trim();
-  if (custom) return custom;
-  if (body.metadata && typeof body.metadata === "object") {
-    const slug = asString(
-      (body.metadata as Record<string, unknown>).slug
-    ).trim();
-    if (slug) return slug;
-  }
   return "";
 }
 
@@ -196,22 +205,49 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, ignored: rawStatus || "no-status" });
   }
 
-  const slug =
-    slugFromMetadata(body) ||
-    slugFromOrderId(asString(body.order_id) || asString(body.external_id)) ||
-    "";
-
-  if (!slug) {
-    return NextResponse.json(
-      { error: "Slug tidak ditemukan di order_id/metadata" },
-      { status: 400 }
-    );
-  }
-
+  // Target upgrade HANYA boleh berasal dari order_id/external_id yang
+  // sudah melewati verifikasi signature (Midtrans) / callback token
+  // (Xendit) di atas.
+  //
+  // `custom_field1` dan `metadata.slug` SENGAJA DIABAIKAN: keduanya tidak
+  // ikut ditandatangani, sehingga menjadi vektor untuk mengarahkan
+  // upgrade ke halaman milik orang lain.
   const orderId = asString(body.order_id) || asString(body.external_id);
   if (!orderId) {
     return NextResponse.json(
       { error: "order_id/external_id wajib diisi" },
+      { status: 400 }
+    );
+  }
+
+  const slug = slugFromOrderId(orderId);
+  if (!slug) {
+    return NextResponse.json(
+      { error: "Slug tidak dapat diturunkan dari order_id" },
+      { status: 400 }
+    );
+  }
+
+  // Cross-check dengan baris order: halaman mana yang sebenarnya dibayar.
+  // Baris `orders` dicatat saat checkout dan tidak pernah diubah oleh
+  // upsertPaidOrder (ON CONFLICT hanya menyentuh status/updated_at),
+  // sehingga `page_slug` di sini adalah catatan otoritatif.
+  const orderRow = await getOrderByOrderId(orderId);
+  if (!orderRow) {
+    console.error(
+      `[payment-webhook] order ${orderId} tidak ditemukan di database — upgrade ditolak`
+    );
+    return NextResponse.json(
+      { error: "Order tidak ditemukan" },
+      { status: 404 }
+    );
+  }
+  if (orderRow.page_slug !== slug) {
+    console.error(
+      `[payment-webhook] order ${orderId} page_slug '${orderRow.page_slug}' tidak cocok dengan slug dari order_id '${slug}' — upgrade ditolak`
+    );
+    return NextResponse.json(
+      { error: "Order tidak cocok dengan halaman yang dituju" },
       { status: 400 }
     );
   }
@@ -224,24 +260,33 @@ export async function POST(req: Request) {
     );
   }
 
-  // Tolak pembayaran kurang bayar bila harga Pro dikonfigurasi.
-  const expectedPrice = process.env.PRO_PRICE_IDR
-    ? parseFloat(process.env.PRO_PRICE_IDR)
-    : null;
+  // Harga minimum Pro WAJIB valid sebelum upgrade diproses.
+  //
+  // FAIL-CLOSED: tanpa harga yang valid kita tidak bisa memverifikasi
+  // nominal. Versi sebelumnya hanya memberi peringatan dan MENERUSKAN
+  // upgrade — sehingga transaksi ber-nominal sembarang (mis. 1 rupiah)
+  // bisa menaikkan is_pro. Sekarang konfigurasi rusak = upgrade ditolak
+  // dengan 503 agar payment provider me-retry, dan order belum ditandai
+  // paid (dicek SEBELUM upsertPaidOrder) sehingga tidak ada state
+  // "paid tapi belum Pro" yang menggantung.
+  const rawPrice = process.env.PRO_PRICE_IDR;
+  const expectedPrice = rawPrice ? parseFloat(rawPrice) : Number.NaN;
+  if (!Number.isFinite(expectedPrice) || expectedPrice <= 0) {
+    console.error(
+      `[payment-webhook] PRO_PRICE_IDR tidak valid — upgrade PRO untuk slug '${slug}' (order ${orderId}) DITOLAK. Perbaiki env lalu biarkan provider retry, atau aktifkan Pro manual dari panel admin.`
+    );
+    return NextResponse.json(
+      { error: "Konfigurasi harga belum valid" },
+      { status: 503 }
+    );
+  }
+
+  // Tolak pembayaran kurang bayar.
   const amount = parseAmount(body);
-  if (
-    expectedPrice !== null &&
-    Number.isFinite(expectedPrice) &&
-    (amount === null || amount < expectedPrice)
-  ) {
+  if (amount === null || amount < expectedPrice) {
     return NextResponse.json(
       { error: "Nominal pembayaran tidak mencukupi" },
       { status: 402 }
-    );
-  }
-  if (expectedPrice === null || !Number.isFinite(expectedPrice)) {
-    console.warn(
-      "[payment-webhook] PRO_PRICE_IDR belum di-set, cek nominal dilewati"
     );
   }
 

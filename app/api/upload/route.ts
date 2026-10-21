@@ -101,18 +101,30 @@ export async function POST(req: Request) {
     }
 
     // 3) Production tanpa Supabase: storage memang belum dikonfigurasi.
+    //
+    // KEAMANAN: nama variabel lingkungan & nama bucket TIDAK boleh
+    // diekspos ke klien — pesan seperti "set SUPABASE_SERVICE_ROLE_KEY"
+    // memetakan infrastruktur internal bagi penyerang. Detail konfigurasi
+    // hanya ditulis ke log server; klien menerima pesan generik.
+    console.error("[upload] storage belum dikonfigurasi", {
+      hasSupabaseUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+      hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      bucket: UPLOADS_BUCKET,
+      nodeEnv: process.env.NODE_ENV,
+    });
     return NextResponse.json(
       {
         error:
-          `Storage belum dikonfigurasi (NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY + bucket publik '${UPLOADS_BUCKET}')`,
+          "Layanan penyimpanan sedang tidak tersedia. Silakan coba lagi nanti.",
       },
       { status: 501 }
     );
   } catch (error) {
+    // Detail (pesan driver Supabase/FS, path server) → log server saja.
+    console.error("[upload] gagal mengunggah file", error);
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Gagal mengunggah file",
+        error: "Gagal mengunggah file. Silakan coba lagi.",
       },
       { status: 500 }
     );

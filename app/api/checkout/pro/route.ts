@@ -9,6 +9,71 @@ import { hasProAccess } from "@/lib/entitlements";
 
 type Provider = "midtrans" | "xendit";
 
+/** Host loopback yang diizinkan sebagai fallback development. */
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+
+/**
+ * Baca env var secara DINAMIS (nama lewat variabel), bukan literal
+ * `process.env.NEXT_PUBLIC_X`.
+ *
+ * Alasannya: Next.js meng-inline nilai `NEXT_PUBLIC_*` saat build. Pada
+ * deployment Cloudflare/OpenNext env hanya tersedia saat RUNTIME, sehingga
+ * nilai yang ter-inline bisa `undefined`. Akses dinamis memastikan env
+ * dibaca saat request benar-benar datang.
+ */
+function envValue(name: string): string | undefined {
+  const value = (process.env as Record<string, string | undefined>)[name];
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
+}
+
+/**
+ * Origin aplikasi yang TEERPERCAYA untuk URL redirect pembayaran.
+ *
+ * KESALAHAN YANG DIHINDARI: mengambil origin dari `new URL(req.url).origin`
+ * berarti mengambilnya dari header `Host` — yang bisa dipalsukan klien.
+ * Kalau header itu ikut dikendalikan penyerang, `callbacks.finish` /
+ * `success_redirect_url` akan mengarah ke domain penyerang: pengguna
+ * membayar, lalu diarahkan ke halaman palsu (phishing di tengah alur
+ * pembayaran, tanpa satu pun interact dengan server kita).
+ *
+ * Sumber yang sah hanya env:
+ * - `NEXT_PUBLIC_APP_URL` (utama, sesuai konvensi project)
+ * - `APP_URL` (alias runtime-safe untuk Cloudflare/OpenNext, di mana
+ *   variabel `NEXT_PUBLIC_*` umumnya hanya tersedia saat build)
+ *
+ * Fallback HANYA untuk development lokal dan HANYA ke loopback.
+ */
+function appOrigin(req: Request): string {
+  const configured = envValue("NEXT_PUBLIC_APP_URL") ?? envValue("APP_URL");
+  if (configured) {
+    let parsed: URL;
+    try {
+      parsed = new URL(configured);
+    } catch {
+      throw new Error("NEXT_PUBLIC_APP_URL bukan URL yang valid");
+    }
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      throw new Error("NEXT_PUBLIC_APP_URL harus memakai http atau https");
+    }
+    // `origin` menormalisasi: membuang path, query, dan trailing slash.
+    return parsed.origin;
+  }
+
+  // Tanpa env: hanya development lokal yang boleh jalan, dan hanya ke
+  // loopback. Di luar development → gagal (fail-closed).
+  if (process.env.NODE_ENV === "development") {
+    try {
+      const requestUrl = new URL(req.url);
+      if (LOOPBACK_HOSTS.has(requestUrl.hostname)) return requestUrl.origin;
+    } catch {
+      // abaikan — jatuh ke default loopback di bawah
+    }
+    return "http://localhost:3000";
+  }
+
+  throw new Error("NEXT_PUBLIC_APP_URL belum dikonfigurasi");
+}
+
 function proPrice(): number | null {
   const raw = process.env.PRO_PRICE_IDR;
   if (!raw) return null;
@@ -147,7 +212,7 @@ async function createXenditInvoice(input: {
       currency: "IDR",
       description: `Upgrade PRO - ${input.slug}`,
       customer: input.email ? { email: input.email } : undefined,
-      success_redirect_url: `${input.origin}/dashboard?upgraded=${input.slug}`,
+      success_redirect_url: `${input.origin}/dashboard?upgraded=${encodeURIComponent(input.slug)}`,
       failure_redirect_url: `${input.origin}/dashboard`,
     }),
   });
@@ -187,8 +252,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, alreadyPro: true, slug });
   }
 
-  // Admin & development/lokal sudah punya akses Pro penuh — tanpa pembayaran.
-  if (hasProAccess({ isPro: false, isAdmin: await isAdmin(userId) })) {
+  // Surel diambil dari Clerk (authoritative), bukan dari body request —
+  // dipakai untuk pengecekan PRO_BYPASS_EMAILS.
+  const user = await currentUser();
+  const email = user?.emailAddresses[0]?.emailAddress ?? null;
+
+  // Admin & surel yang terdaftar di PRO_BYPASS_EMAILS sudah punya akses
+  // Pro penuh — tanpa pembayaran.
+  if (
+    hasProAccess({
+      isPro: false,
+      isAdmin: await isAdmin(userId),
+      email,
+    })
+  ) {
     return NextResponse.json({ ok: true, alreadyPro: true, slug });
   }
 
@@ -204,10 +281,24 @@ export async function POST(req: Request) {
     );
   }
 
+  // Origin redirect harus berasal dari env tepercaya, bukan header Host.
+  // Dicek SEBELUM order pending dibuat supaya tidak ada order menggantung
+  // yang tak pernah bisa dibayar.
+  let origin: string;
+  try {
+    origin = appOrigin(req);
+  } catch (error) {
+    console.error("[checkout] konfigurasi origin tidak valid", error);
+    return NextResponse.json(
+      {
+        error:
+          "Layanan pembayaran sedang tidak tersedia. Silakan coba lagi nanti.",
+      },
+      { status: 503 }
+    );
+  }
+
   const orderId = `pro-${slug}-${Date.now()}`;
-  const user = await currentUser();
-  const email = user?.emailAddresses[0]?.emailAddress;
-  const origin = new URL(req.url).origin;
 
   await createPendingOrder({
     order_id: orderId,
@@ -217,16 +308,24 @@ export async function POST(req: Request) {
   });
 
   try {
+    // `email` boleh null (user tanpa surel) — provider opsional 이를.
+    const customerEmail = email ?? undefined;
     const tx =
       provider === "midtrans"
         ? await createMidtransTransaction({
             orderId,
             amount,
             slug,
-            email,
+            email: customerEmail,
             origin,
           })
-        : await createXenditInvoice({ orderId, amount, slug, email, origin });
+        : await createXenditInvoice({
+            orderId,
+            amount,
+            slug,
+            email: customerEmail,
+            origin,
+          });
     return NextResponse.json({
       ok: true,
       order_id: orderId,

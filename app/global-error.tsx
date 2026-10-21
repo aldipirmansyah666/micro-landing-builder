@@ -1,5 +1,19 @@
 "use client";
 
+import { useEffect } from "react";
+
+/**
+ * Error boundary paling atas (render menggantikan seluruh root layout).
+ *
+ * KEAMANAN: pesan error mentah (message/stack) TIDAK pernah dirender ke
+ * pengguna — isinya bisa membocorkan path server, nama host, query SQL,
+ * atau struktur internal aplikasi. Yang ditampilkan ke pengguna hanya
+ * pesan generik + kode referensi (`error.digest`) yang cocok dengan log
+ * server, sehingga tim bisa melacak insiden tanpa membuka detail sistem
+ * ke publik.
+ *
+ * Detail lengkap tetap masuk ke log server (Vercel/Cloudflare logs).
+ */
 export default function GlobalError({
   error,
   reset,
@@ -7,6 +21,11 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    // Log server-side saja — satu-satunya tempat detail error terekspos.
+    console.error("[global-error]", error);
+  }, [error]);
+
   return (
     <html lang="id">
       <body>
@@ -27,7 +46,8 @@ export default function GlobalError({
         >
           <h2>Terjadi kesalahan sistem</h2>
           <p style={{ fontSize: 14, opacity: 0.7 }}>
-            {error?.message || "Silakan muat ulang halaman."}
+            Silakan muat ulang halaman. Jika masalah berlanjut, hubungi admin
+            {error?.digest ? ` dan sebutkan kode ${error.digest}` : "."}
           </p>
           <button onClick={() => reset()}>Coba lagi</button>
         </div>

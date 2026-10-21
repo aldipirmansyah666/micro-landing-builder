@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { getLandingPageByUserAndSlug, getUserRole } from "@/lib/db";
 import { hasProAccess } from "@/lib/entitlements";
 import { TEMPLATE_REGISTRY } from "@/lib/templates";
@@ -23,12 +23,18 @@ export default async function BuilderPage({
   const { id } = await params;
   const isNew = id === "new";
 
-  // Admin & development/lokal selalu mendapat akses Pro penuh (bypass paywall).
+  // Surel dari Clerk (authoritative) — dipakai untuk pengecekan
+  // PRO_BYPASS_EMAILS (allowlist eksplisit, bukan NODE_ENV).
+  const user = await currentUser();
+  const email = user?.emailAddresses[0]?.emailAddress ?? null;
+
+  // Admin & surel yang terdaftar di PRO_BYPASS_EMAILS selalu mendapat
+  // akses Pro penuh (bypass paywall).
   const role = await getUserRole(userId);
   const isAdmin = role === "admin";
 
   if (isNew) {
-    const pro = hasProAccess({ isPro: false, isAdmin });
+    const pro = hasProAccess({ isPro: false, isAdmin, email });
     // Deep-link dari landing page: ?template=blossom langsung ter-select
     // di builder (hanya id katalog valid yang diterima).
     const { template } = await searchParams;
@@ -53,7 +59,9 @@ export default async function BuilderPage({
     <BuilderClient
       mode="edit"
       initial={page}
-      plan={hasProAccess({ isPro: page.is_pro, isAdmin }) ? "pro" : "free"}
+      plan={
+        hasProAccess({ isPro: page.is_pro, isAdmin, email }) ? "pro" : "free"
+      }
     />
   );
 }

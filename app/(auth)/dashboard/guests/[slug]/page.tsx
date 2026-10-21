@@ -5,7 +5,7 @@ import { UserButton } from "@clerk/nextjs";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import {
   getGuestsBySlug,
-  getLandingPageByUserAndSlug,
+  getLandingPageBasicByUserAndSlug,
   getWishesBySlug,
   getWishStatsBySlug,
 } from "@/lib/db";
@@ -25,7 +25,8 @@ export default async function GuestsPage({
   if (!userId) redirect("/sign-in");
 
   const { slug } = await params;
-  const page = await getLandingPageByUserAndSlug(userId, slug);
+  // Cukup `title` untuk header — query ringan tanpa `content_json`.
+  const page = await getLandingPageBasicByUserAndSlug(userId, slug);
   if (!page) redirect("/dashboard");
 
   const [guests, wishes, stats] = await Promise.all([

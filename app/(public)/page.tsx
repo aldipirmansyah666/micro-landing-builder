@@ -1,11 +1,116 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Suspense } from "react";
-import { Show, UserButton } from "@clerk/nextjs";
-import { ArrowRight, Check, Eye, Heart, MapPin, Sparkles } from "lucide-react";
-import { DEMO_INVITATION, TEMPLATE_REGISTRY } from "@/lib/templates";
-import { InvitationTemplate } from "@/components/templates/InvitationTemplate";
-import { StaticPreview } from "@/components/templates/parts";
+import { auth } from "@clerk/nextjs/server";
+import { ArrowRight, Check, Heart, MapPin, Sparkles } from "lucide-react";
+import { TEMPLATE_REGISTRY } from "@/lib/templates";
+import { FeaturedTemplateCard } from "@/components/landing/FeaturedTemplateCard";
+
+/**
+ * Navbar berdasarkan session — DITENTUKAN DI SERVER.
+ *
+ * Sebelumnya memakai `<Show when="signed-in|signed-out">` + `<UserButton>`
+ * dari @clerk/nextjs. Keduanya adalah komponen CLIENT yang membutuhkan
+ * `<ClerkProvider>`, sehingga menarik runtime Clerk client (±170 KB) ke
+ * bundle first-load landing page.
+ *
+ * Sekarang status sesi diambil di server lewat `auth()` (dari
+ * @clerk/nextjs/server — tidak butuh provider di sisi klien), dan
+ * `<UserButton>` diganti tautan biasa ke /dashboard. Bundle landing page
+ * jadi bebas Clerk.
+ *
+ * `auth()` dipanggil DI DALAM <Suspense> supaya shell landing page tetap
+ * ter-prerender (Partial Prerender) — hanya bagian nav yang dinamis.
+ */
+async function NavAuth() {
+  const { userId } = await auth();
+
+  if (!userId) {
+    return (
+      <>
+        <Link
+          href="/sign-in"
+          className="rounded-full px-4 py-2 text-sm font-medium text-stone-300 transition-colors hover:text-white"
+        >
+          Masuk
+        </Link>
+        <Link
+          href="/dashboard"
+          className="rounded-full bg-[#F4735C] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#E15F47]"
+        >
+          Buat Undangan Gratis
+        </Link>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Link
+        href="/dashboard"
+        className="rounded-full bg-[#F4735C] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#E15F47]"
+      >
+        Buat Undangan Gratis
+      </Link>
+      <Link
+        href="/dashboard"
+        className="rounded-full border border-stone-700 px-4 py-2 text-sm font-medium text-stone-200 transition-colors hover:border-stone-500 hover:text-white"
+      >
+        Dashboard
+      </Link>
+    </>
+  );
+}
+
+/** Fallback Suspense: struktur sama tinggi supaya tidak ada layout shift. */
+function NavAuthFallback() {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="h-9 w-16 rounded-full bg-stone-800/60" />
+      <span className="h-9 w-36 rounded-full bg-stone-800/60" />
+    </div>
+  );
+}
+
+/**
+ * CTA hero — juga ditentukan di server (lihat NavAuth).
+ *
+ * tamu yang belum login melihat tombol Daftar + Masuk; yang sudah login
+ * langsung diarahkan ke dashboard.
+ */
+async function HeroAuth() {
+  const { userId } = await auth();
+
+  if (userId) {
+    return (
+      <Link
+        href="/dashboard"
+        className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#F4735C] px-7 text-sm font-medium text-white shadow-lg shadow-[#F4735C]/30 transition-colors hover:bg-[#E15F47]"
+      >
+        Mulai Buat Undangan
+        <ArrowRight className="w-4 h-4" />
+      </Link>
+    );
+  }
+
+  return (
+    <>
+      <Link
+        href="/sign-up"
+        className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#F4735C] px-7 text-sm font-medium text-white shadow-lg shadow-[#F4735C]/30 transition-colors hover:bg-[#E15F47]"
+      >
+        Mulai Buat Undangan
+        <ArrowRight className="w-4 h-4" />
+      </Link>
+      <Link
+        href="/sign-in"
+        className="inline-flex h-12 items-center justify-center rounded-full border border-zinc-200 px-7 text-sm font-medium transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+      >
+        Saya sudah punya akun
+      </Link>
+    </>
+  );
+}
 
 const FEATURED_IDS = [
   "aruna",
@@ -72,39 +177,8 @@ export default function Home() {
           </span>
         </Link>
         <nav className="flex items-center gap-3">
-          <Suspense
-            fallback={
-              <Link
-                href="/dashboard"
-                className="rounded-full bg-[#F4735C] px-4 py-2 text-sm font-medium text-white hover:bg-[#E15F47]"
-              >
-                Buat Undangan Gratis
-              </Link>
-            }
-          >
-            <Show when="signed-out">
-              <Link
-                href="/sign-in"
-                className="rounded-full px-4 py-2 text-sm font-medium text-stone-300 transition-colors hover:text-white"
-              >
-                Masuk
-              </Link>
-              <Link
-                href="/dashboard"
-                className="rounded-full bg-[#F4735C] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#E15F47]"
-              >
-                Buat Undangan Gratis
-              </Link>
-            </Show>
-            <Show when="signed-in">
-              <Link
-                href="/dashboard"
-                className="rounded-full bg-[#F4735C] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#E15F47]"
-              >
-                Buat Undangan Gratis
-              </Link>
-              <UserButton />
-            </Show>
+          <Suspense fallback={<NavAuthFallback />}>
+            <NavAuth />
           </Suspense>
         </nav>
       </header>
@@ -152,34 +226,11 @@ export default function Home() {
                     className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#F4735C] px-7 text-sm font-medium text-white shadow-lg shadow-[#F4735C]/30 hover:bg-[#E15F47]"
                   >
                     Mulai Buat Undangan
-                    <ArrowRight className="h-4 w-4" />
+                    <ArrowRight className="w-4 h-4" />
                   </Link>
                 }
               >
-                <Show when="signed-out">
-                  <Link
-                    href="/sign-up"
-                    className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#F4735C] px-7 text-sm font-medium text-white shadow-lg shadow-[#F4735C]/30 transition-colors hover:bg-[#E15F47]"
-                  >
-                    Mulai Buat Undangan
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                  <Link
-                    href="/sign-in"
-                    className="inline-flex h-12 items-center justify-center rounded-full border border-zinc-200 px-7 text-sm font-medium transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
-                  >
-                    Saya sudah punya akun
-                  </Link>
-                </Show>
-                <Show when="signed-in">
-                  <Link
-                    href="/dashboard"
-                    className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#F4735C] px-7 text-sm font-medium text-white shadow-lg shadow-[#F4735C]/30 transition-colors hover:bg-[#E15F47]"
-                  >
-                    Mulai Buat Undangan
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Show>
+                <HeroAuth />
               </Suspense>
             </div>
 
@@ -295,67 +346,7 @@ export default function Home() {
           </p>
           <div className="mt-8 grid w-full gap-4 text-left sm:grid-cols-2 lg:grid-cols-3">
             {featuredTemplates.map((t) => (
-              <Link
-                key={t.id}
-                href={`/dashboard/builder/new?template=${t.id}`}
-                className="group overflow-hidden rounded-2xl border border-zinc-200 transition-shadow hover:shadow-lg dark:border-zinc-800"
-              >
-                {/* Thumbnail asli: komponen template sungguhan + data demo —
-                    ornamen khas (arch Aruna, kawung Puspaningrat, mihrab
-                    Azzahra) ikut terlihat seperti di builder. */}
-                <div className="relative h-64 overflow-hidden bg-zinc-100 dark:bg-zinc-900">
-                  <div
-                    aria-hidden
-                    className="pointer-events-none h-full w-full overflow-hidden"
-                  >
-                    <StaticPreview>
-                      <InvitationTemplate
-                        title="Demo"
-                        templateType={t.id}
-                        content={DEMO_INVITATION}
-                        defaultOpened
-                        rsvpSlot={null}
-                      />
-                    </StaticPreview>
-                  </div>
-                  <div
-                    aria-hidden
-                    className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/50 to-transparent"
-                  />
-                  <span className="pointer-events-none absolute top-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-white uppercase backdrop-blur">
-                    Demo
-                  </span>
-                  <span className="absolute inset-0 flex items-center justify-center bg-[#1B2A4A]/45 opacity-0 transition-opacity group-hover:opacity-100">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F4735C] px-5 py-2.5 text-xs font-semibold text-white shadow-xl transition-transform group-hover:scale-105">
-                      <Eye className="h-3.5 w-3.5" />
-                      Lihat Demo
-                    </span>
-                  </span>
-                </div>
-                <div className="p-4">
-                  <div className="flex items-center gap-1.5">
-                    {t.swatches.map((c) => (
-                      <span
-                        key={c}
-                        aria-hidden
-                        className="h-3.5 w-3.5 rounded-full border border-black/10"
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
-                  </div>
-                  <p className="mt-2 text-sm font-semibold">{t.name}</p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {t.category}
-                  </p>
-                  <p className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-600 dark:text-zinc-400">
-                    {t.tagline}
-                  </p>
-                  <p className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-[#1B2A4A] group-hover:underline dark:text-zinc-100">
-                    Coba template ini
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </p>
-                </div>
-              </Link>
+              <FeaturedTemplateCard key={t.id} meta={t} />
             ))}
           </div>
         </section>

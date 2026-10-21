@@ -14,11 +14,11 @@ import {
   Users,
 } from "lucide-react";
 import {
-  getLandingPagesByUserId,
+  getLandingPageSummariesByUserId,
   getUserRole,
   upsertUser,
   getDashboardStats,
-  type LandingPage,
+  type LandingPageSummary,
 } from "@/lib/db";
 import { DeleteLandingPageButton } from "./DeleteButton";
 import { CopyWaLinkButton, ExportGuestsButton } from "./QuickActions";
@@ -49,12 +49,15 @@ function StatusBadge({ isPro }: { isPro: boolean }) {
 function LandingPageCard({
   page,
   isAdmin,
+  email,
 }: {
-  page: LandingPage;
+  page: LandingPageSummary;
   isAdmin: boolean;
+  email: string | null;
 }) {
-  // Admin & development/lokal mendapat akses Pro penuh (bypass paywall).
-  const showAsPro = hasProAccess({ isPro: page.is_pro, isAdmin });
+  // Admin & surel yang terdaftar di PRO_BYPASS_EMAILS mendapat akses Pro
+  // penuh (bypass paywall).
+  const showAsPro = hasProAccess({ isPro: page.is_pro, isAdmin, email });
   return (
     <article className="flex flex-col rounded-2xl border border-zinc-200 bg-white p-5 transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex items-start justify-between gap-3">
@@ -122,12 +125,12 @@ export default async function DashboardPage() {
 
   // Pastikan baris user ada (FK landing_pages.user_id -> users.clerk_id)
   const user = await currentUser();
-  const email = user?.emailAddresses[0]?.emailAddress ?? "";
+  const email = user?.emailAddresses[0]?.emailAddress ?? null;
   if (email) {
     await upsertUser({ id: userId, clerk_id: userId, email });
   }
 
-  const pages = await getLandingPagesByUserId(userId);
+  const pages = await getLandingPageSummariesByUserId(userId);
   const role = await getUserRole(userId);
   const isUserAdmin = role === "admin";
   const stats = await getDashboardStats(userId);
@@ -263,11 +266,16 @@ export default async function DashboardPage() {
             </Link>
           </div>
         ) : (
-          <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {pages.map((page) => (
-              <LandingPageCard key={page.id} page={page} isAdmin={isUserAdmin} />
-            ))}
-          </section>
+            <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {pages.map((page) => (
+                <LandingPageCard
+                  key={page.id}
+                  page={page}
+                  isAdmin={isUserAdmin}
+                  email={email}
+                />
+              ))}
+            </section>
         )}
       </main>
     </div>
