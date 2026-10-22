@@ -109,6 +109,37 @@ export interface Countdown {
   secs: number;
 }
 
+/**
+ * State "cover sudah dibuka" yang mengikuti prop `defaultOpened`.
+ *
+ * Memakai pola "adjust state when a prop changes" yang direkomendasikan
+ * React: ketika `defaultOpened` berubah, `opened` langsung disinkronkan
+ * SAAT RENDER — bukan lewat `useEffect`. React membuang render yang
+ * basi dan mengulang render sebelum commit, jadi tidak ada frame
+ * kedipan dengan nilai lama.
+ *
+ * Kenapa bukan `useEffect`? `useEffect` memunculkan satu render dengan
+ * nilai lama terlebih dulu (kedipan) dan menambah satu lint rule yang
+ * harus di-disable.
+ *
+ * Tujuannya: builder dapat membuka/menutup cover tanpa me-remount
+ * seluruh pohon template. Sebelumnya cover toggle dilakukan lewat
+ * `key` pada `<InvitationTemplate>`, yang destroying & membuat ulang
+ * seluruh DOM — termasuk `<img>` (decode ulang) dan seluruh
+ * IntersectionObserver milik `Reveal`.
+ */
+export function useCoverOpened(
+  defaultOpened?: boolean
+): [boolean, (value: boolean) => void] {
+  const [opened, setOpened] = useState(defaultOpened ?? false);
+  const [lastDefault, setLastDefault] = useState(defaultOpened);
+  if (defaultOpened !== lastDefault) {
+    setLastDefault(defaultOpened);
+    setOpened(defaultOpened ?? false);
+  }
+  return [opened, setOpened];
+}
+
 /** Countdown yang hanya berjalan setelah undangan dibuka (hemat render). */
 export function useCountdown(
   target: number | null,

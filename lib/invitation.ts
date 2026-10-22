@@ -17,7 +17,18 @@ export const MAX_STORIES = 5;
 export const MAX_STORY_TITLE_LEN = 80;
 export const MAX_STORY_TEXT_LEN = 1000;
 
-export interface InvitationContent {
+/**
+ * Dokumen undangan kanonik — sumber kebenaran tunggal untuk isi satu
+ * landing page.
+ *
+ * Sengaja dideklarasikan sebagai `type` (bukan `interface`): type alias
+ * mendapat *implicit index signature*, sehingga `InvitationContent`
+ * bisa langsung dipakai sebagai `Record<string, unknown>` — yaitu tipe
+ * yang dipakai layer DB untuk `content_json`. Dengan begitu hasil
+ * normalisasi bisa disimpan apa adanya tanpa cast `as any`, dan
+ * TypeScript tetap menangkap field yang salah ketik.
+ */
+export type InvitationContent = {
   quote: string;
   groomFullName: string;
   groomNickname: string;
@@ -52,7 +63,7 @@ export interface InvitationContent {
    * = section tidak ditampilkan; hanya dirender template flagship.
    */
   stories?: StoryEntry[];
-}
+};
 
 /** Id template lawas — tetap dirender demi kompatibilitas data lama. */
 export type LegacyTemplateId =

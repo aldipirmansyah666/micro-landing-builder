@@ -223,6 +223,29 @@ export async function POST(req: Request) {
     isAdmin: role === "admin",
     email,
   });
+  /**
+   * Dokumen kanonik hasil normalisasi.
+   *
+   * Dipakai DUA hal sekaligus:
+   * 1. Validasi entitlement (gallery, backsound, sapaan/cerita).
+   * 2. YANG DISIMPAN ke `content_json`.
+   *
+   * Penting: yang disimpan adalah `normalized`, BUKAN `contentJson` mentah.
+   * Kalau payload mentah yang disimpan, key asing (mis. `foo`) dan key
+   * legacy (`description`, `galleryUrls`, `imageUrl`, …) akan menumpuk
+   * permanen di database — tidak pernah dibersihkan, dan tidak pernah
+   * divalidasi karena validasi berjalan terhadap bentuk normalisasi.
+   * Dengan menyimpan `normalized`, isi database selalu berbentuk
+   * `InvitationContent` yang valid, dan pembaca halaman publik tidak
+   * perlu migrasi manual.
+   *
+   * Konsekuensi yang disengaja: field di luar `InvitationContent`
+   * dibuang saat disimpan. Format lama tetap bermigrasi otomatis
+   * karena `toInvitationContent()` memetakan `description`→`quote`,
+   * `date`→`akadDate`/`receptionDate`, `location`→`…Venue`,
+   * `mapsUrl`→`…MapsUrl`, `imageUrl`/`coverImageUrl`→`heroImage`, dan
+   * `galleryUrls`→`galleryImages`.
+   */
   const normalized = toInvitationContent(contentJson);
   const entitlementError = checkSaveEntitlements({
     isPro: proAccess,
@@ -261,7 +284,7 @@ export async function POST(req: Request) {
     const updated = await updateLandingPage(userId, slug, {
       title,
       template_type: templateType,
-      contentJson,
+      contentJson: normalized,
     });
     if (!updated) {
       return NextResponse.json(
@@ -283,7 +306,7 @@ export async function POST(req: Request) {
       title,
       slug,
       template_type: templateType,
-      content_json: contentJson,
+      content_json: normalized,
     });
     if (needsProPersist) {
       await setLandingPageProBySlug(slug, true);

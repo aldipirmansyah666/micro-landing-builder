@@ -3,10 +3,8 @@
 import { useEffect, useState, useTransition } from "react";
 import { Check, Copy, FileUp, Link2, Loader2, MessageCircle, Plus, Trash2 } from "lucide-react";
 import type { Guest } from "@/lib/db";
+import { Input } from "@/design-system/primitives";
 import { addGuestAction, deleteGuestAction } from "./actions";
-
-const inputClass =
-  "h-10 rounded-xl border border-zinc-200 bg-white px-3.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-400";
 
 const DEFAULT_MESSAGE_TEMPLATE = `Halo {nama_tamu}!
 
@@ -214,19 +212,21 @@ export function GuestManager({
         onSubmit={(e) => void handleAdd(e)}
         className="flex flex-col gap-2 sm:flex-row"
       >
-        <input
+        <Input
+          size="sm"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Nama tamu"
           maxLength={100}
-          className={`${inputClass} flex-1`}
+          className="flex-1"
         />
-        <input
+        <Input
+          size="sm"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           placeholder="No. HP (opsional)"
           maxLength={30}
-          className={`${inputClass} sm:w-44`}
+          className="sm:w-44"
         />
         <button
           type="submit"

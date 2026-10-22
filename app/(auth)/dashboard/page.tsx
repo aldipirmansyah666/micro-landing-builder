@@ -25,6 +25,7 @@ import { CopyWaLinkButton, ExportGuestsButton } from "./QuickActions";
 import { UpgradeProButton } from "@/components/billing/UpgradeProModal";
 import { hasProAccess } from "@/lib/entitlements";
 import { templateLabel } from "@/lib/templates";
+import { buttonClass } from "@/design-system/primitives";
 
 // Halaman privat (auth + query Neon per-request): boleh blocking,
 // opt-out dari validasi instant navigation (Next.js 16 + cacheComponents).
@@ -198,7 +199,7 @@ export default async function DashboardPage() {
           </div>
           <Link
             href="/dashboard/builder/new"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            className={buttonClass({ variant: "primary", size: "lg" })}
           >
             <Plus className="h-4 w-4" />
             Buat Undangan Baru
@@ -259,7 +260,11 @@ export default async function DashboardPage() {
             </p>
             <Link
               href="/dashboard/builder/new"
-              className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              className={buttonClass({
+                variant: "primary",
+                size: "lg",
+                className: "mt-6",
+              })}
             >
               <Plus className="h-4 w-4" />
               Buat Undangan Baru

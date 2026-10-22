@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -62,55 +62,79 @@ import {
 } from "@/lib/backsounds";
 import { TEMPLATE_REGISTRY, templateLabel } from "@/lib/templates";
 import { copyText, waShareText } from "../../QuickActions";
+import {
+  Accordion,
+  Button,
+  Dialog,
+  Field,
+  Input,
+  Textarea,
+  fieldLabelClass,
+} from "@/design-system/primitives";
 
-const inputClass =
-  "w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-400";
+/**
+ * Placeholder RSVP untuk preview builder.
+ *
+ * Di-hoist ke level modul (bukan JSX inline di dalam render) supaya
+ * identitas elemennya stabil. `React.memo` membandingkan props secara
+ * shallow — props `rsvpSlot` yang dibuat inline selalu berbeda pada
+ * setiap render, sehingga memo tidak pernah bisa melewati render.
+ */
+const PREVIEW_RSVP_PLACEHOLDER = (
+  <div className="rounded-2xl border border-dashed border-zinc-300 p-4 text-center text-xs text-zinc-500 dark:border-zinc-700">
+    Form Ucapan & RSVP akan tampil di sini pada halaman live.
+  </div>
+);
 
-const labelClass =
-  "mb-1.5 block text-xs font-medium text-zinc-600 dark:text-zinc-400";
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label className={labelClass}>{label}</label>
-      {children}
-    </div>
-  );
-}
-
-function Accordion({
-  title,
-  defaultOpen = false,
-  children,
-}: {
+interface BuilderPreviewProps {
   title: string;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
+  templateType: string;
+  content: InvitationContent;
+  guestName: string;
+  defaultOpened: boolean;
+  replayKey: number;
+}
+
+/**
+ * Panel preview live (bingkai ponsel).
+ *
+ * Dipisah dari `BuilderClient` dan dibungkus `memo` supaya render
+ * form — mengetik di input, status upload, pesan toast — tidak ikut
+ * menarik seluruh pohon template.
+ *
+ * `key` hanya berisi `replayKey` (tombol "Putar ulang cover").
+ * Sebelumnya `previewOpened` ikut masuk ke `key`, sehingga membuka /
+ * menutup cover akan me-remount SELURUH pohon template: seluruh DOM
+ * dibuat ulang, `<img>` di-decode ulang, dan setiap IntersectionObserver
+ * milik `Reveal` dibuat ulang. Sekarang `defaultOpened` disinkronkan
+ * di dalam template lewat `useCoverOpened`, jadi cukup state update
+ * biasa — tanpa remount.
+ */
+const BuilderPreview = memo(function BuilderPreview({
+  title,
+  templateType,
+  content,
+  guestName,
+  defaultOpened,
+  replayKey,
+}: BuilderPreviewProps) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="flex w-full items-center justify-between gap-2 bg-zinc-50 px-4 py-3.5 text-left text-sm font-semibold tracking-tight transition-colors hover:bg-zinc-100 dark:bg-zinc-900 dark:hover:bg-zinc-800"
-      >
-        {title}
-        <ChevronDown
-          className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+    <div className="mx-auto w-full max-w-[380px] overflow-hidden rounded-[2.5rem] border-[10px] border-zinc-900 bg-zinc-900 shadow-2xl dark:border-zinc-700">
+      <div className="mx-auto mt-2 h-5 w-28 rounded-full bg-zinc-900 dark:bg-zinc-700" />
+      <div className="h-[720px] overflow-y-auto rounded-b-[1.8rem] bg-white dark:bg-black">
+        <InvitationTemplate
+          key={replayKey}
+          title={title}
+          templateType={templateType}
+          content={content}
+          guestName={guestName}
+          defaultOpened={defaultOpened}
+          rsvpSlot={PREVIEW_RSVP_PLACEHOLDER}
         />
-      </button>
-      {open && <div className="space-y-4 p-4">{children}</div>}
+      </div>
     </div>
   );
-}
+});
 
 /**
  * Audio picker backsound khusus PRO: mode "Preset Lagu" (daftar preset
@@ -171,7 +195,7 @@ function BacksoundPicker({
 
   return (
     <div>
-      <span className={labelClass}>Backsound Musik 🔒 PRO</span>
+      <span className={fieldLabelClass}>Backsound Musik 🔒 PRO</span>
       <div className="mb-3 grid grid-cols-2 gap-2">
         <button
           type="button"
@@ -256,12 +280,11 @@ function BacksoundPicker({
       ) : (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <input
+            <Input
               value={value}
               onChange={(e) => onPick(e.target.value)}
               placeholder="https://.../lagu.mp3"
               inputMode="url"
-              className={inputClass}
             />
             <input
               ref={fileInputRef}
@@ -336,7 +359,7 @@ function EventFields({
       <p className="text-sm font-medium">{title}</p>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Tanggal">
-          <input
+          <Input
             type="date"
             value={prefix === "akad" ? content.akadDate : content.receptionDate}
             onChange={(e) =>
@@ -346,11 +369,10 @@ function EventFields({
                   : { receptionDate: e.target.value }
               )
             }
-            className={inputClass}
           />
         </Field>
         <Field label="Jam">
-          <input
+          <Input
             type="time"
             value={prefix === "akad" ? content.akadTime : content.receptionTime}
             onChange={(e) =>
@@ -360,12 +382,11 @@ function EventFields({
                   : { receptionTime: e.target.value }
               )
             }
-            className={inputClass}
           />
         </Field>
       </div>
       <Field label="Alamat / Gedung">
-        <input
+        <Input
           value={prefix === "akad" ? content.akadVenue : content.receptionVenue}
           onChange={(e) =>
             onChange(
@@ -375,11 +396,10 @@ function EventFields({
             )
           }
           placeholder="cth: Gedung Serbaguna, Jakarta"
-          className={inputClass}
         />
       </Field>
       <Field label="Link Google Maps">
-        <input
+        <Input
           value={prefix === "akad" ? content.akadMapsUrl : content.receptionMapsUrl}
           onChange={(e) =>
             onChange(
@@ -390,7 +410,6 @@ function EventFields({
           }
           placeholder="https://maps.google.com/..."
           inputMode="url"
-          className={inputClass}
         />
       </Field>
     </div>
@@ -451,64 +470,50 @@ function ProTemplateInfoModal({
   onClose: () => void;
 }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Template khusus PRO"
+    <Dialog
+      open
+      onClose={onClose}
+      size="sm"
+      title={
+        <>
+          <Crown className="h-5 w-5 text-amber-500" />
+          {templateLabel(templateId)}
+        </>
+      }
+      titleClassName="inline-flex items-center gap-2 text-base"
     >
-      <div
-        className="w-full max-w-sm rounded-3xl bg-white p-6 text-zinc-900 shadow-2xl dark:bg-zinc-950 dark:text-zinc-50"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between">
-          <h3 className="inline-flex items-center gap-2 text-base font-semibold tracking-tight">
-            <Crown className="h-5 w-5 text-amber-500" />
-            {templateLabel(templateId)}
-          </h3>
+      <p className="mt-2 text-sm opacity-70">
+        Template ini khusus PRO. Kamu tetap bisa{" "}
+        <span className="font-medium">preview secara real-time</span> dengan
+        semua data form yang sedang diisi — tanpa terkunci.
+      </p>
+      <p className="mt-2 text-sm opacity-70">
+        Upgrade ke PRO untuk menyimpan & mempublish undangan dengan template
+        ini. Paket Free tersimpan dengan template Aruna.
+      </p>
+      <div className="mt-5 flex gap-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="h-10 flex-1 rounded-full border border-zinc-200 text-sm font-medium transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        >
+          Tetap Preview
+        </button>
+        {savedSlug ? (
+          <div className="flex-1 [&>button]:w-full">
+            <UpgradeProButton slug={savedSlug} />
+          </div>
+        ) : (
           <button
             type="button"
             onClick={onClose}
-            aria-label="Tutup info PRO"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            className="h-10 flex-1 rounded-full bg-amber-400 text-sm font-semibold text-amber-950 transition-colors hover:bg-amber-300"
           >
-            <X className="h-4 w-4" />
+            Mengerti
           </button>
-        </div>
-        <p className="mt-2 text-sm opacity-70">
-          Template ini khusus PRO. Kamu tetap bisa{" "}
-          <span className="font-medium">preview secara real-time</span> dengan
-          semua data form yang sedang diisi — tanpa terkunci.
-        </p>
-        <p className="mt-2 text-sm opacity-70">
-          Upgrade ke PRO untuk menyimpan & mempublish undangan dengan template
-          ini. Paket Free tersimpan dengan template Aruna.
-        </p>
-        <div className="mt-5 flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-10 flex-1 rounded-full border border-zinc-200 text-sm font-medium transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
-          >
-            Tetap Preview
-          </button>
-          {savedSlug ? (
-            <div className="flex-1 [&>button]:w-full">
-              <UpgradeProButton slug={savedSlug} />
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-10 flex-1 rounded-full bg-amber-400 text-sm font-semibold text-amber-950 transition-colors hover:bg-amber-300"
-            >
-              Mengerti
-            </button>
-          )}
-        </div>
+        )}
       </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -676,15 +681,33 @@ export function BuilderClient({
   const [proInfoTemplate, setProInfoTemplate] = useState<string | null>(null);
 
   /**
+   * Payload preview ditunda (deferred) supaya mengetik di form tidak
+   * memaksa render penuh pohon template pada setiap ketikan.
+   *
+   * `useDeferredValue` membuat React memakai nilai LAMA untuk render
+   * mendesak — input tetap responsif dan caret tidak berkedip — lalu
+   * menjadwalkan render lanjutan dengan nilai baru pada prioritas lebih
+   * rendah. Efeknya: beberapa ketikan beruntun digabung menjadi satu
+   * render template, bukan satu render per ketikan.
+   *
+   * Perhatikan bahwa `previewContent` (normalisasi) ikut di-defer:
+   * normalisasi hanya dijalankan ulang ketika nilai tertunda benar-benar
+   * berubah, bukan pada setiap ketikan.
+   */
+  const deferredTitle = useDeferredValue(title);
+  const deferredContent = useDeferredValue(content);
+  const deferredGuestName = useDeferredValue(previewGuest);
+
+  /**
    * Preview memakai konten yang dinormalisasi ulang lewat
    * toInvitationContent() — choke point yang sama dengan halaman publik
    * /p/[slug]. Dengan begitu URL non-http(s) yang diketik manual di form
    * (mis. "javascript:...") tidak pernah sampai ke href/src di preview,
    * persis seperti perilaku produksi.
    */
-  const previewContent = useMemo(
-    () => toInvitationContent(content),
-    [content]
+  const deferredPreviewContent = useMemo(
+    () => toInvitationContent(deferredContent),
+    [deferredContent]
   );
 
   function handleTemplateSelect(id: string) {
@@ -820,11 +843,11 @@ export function BuilderClient({
                 <span className="hidden sm:inline">Lihat Live</span>
               </Link>
             )}
-            <button
-              type="button"
+            <Button
+              size="md"
+              className="px-5"
               onClick={() => void handleSave()}
               disabled={saving || uploading !== null}
-              className="inline-flex h-10 items-center gap-2 rounded-full bg-zinc-900 px-5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
             >
               {saving ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -832,7 +855,7 @@ export function BuilderClient({
                 <Save className="h-4 w-4" />
               )}
               Simpan Perubahan
-            </button>
+            </Button>
           </div>
         </div>
       </header>
@@ -858,11 +881,10 @@ export function BuilderClient({
 
           <Accordion title="📌 Informasi Dasar & Slug" defaultOpen>
             <Field label="Judul Undangan">
-              <input
+              <Input
                 value={title}
                 onChange={(e) => handleTitleChange(e.target.value)}
                 placeholder="cth: Pernikahan Andi & Sinta"
-                className={inputClass}
               />
             </Field>
             <Field label="Slug (link halaman)">
@@ -870,7 +892,7 @@ export function BuilderClient({
                 <span className="rounded-l-xl border border-r-0 border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
                   /p/
                 </span>
-                <input
+                <Input
                   value={slug}
                   disabled={mode === "edit"}
                   onChange={(e) => {
@@ -878,17 +900,17 @@ export function BuilderClient({
                     setSlug(slugify(e.target.value));
                   }}
                   placeholder="andi-sinta"
-                  className={`${inputClass} rounded-l-none`}
+                  className="rounded-l-none"
                 />
               </div>
             </Field>
             <Field label="Kata Pengantar / Quote">
-              <textarea
+              <Textarea
                 value={content.quote}
                 onChange={(e) => patch({ quote: e.target.value })}
                 rows={3}
                 placeholder="Kutipan atau salam pembuka undangan..."
-                className={`${inputClass} resize-none`}
+                className="resize-none"
               />
             </Field>
           </Accordion>
@@ -896,13 +918,13 @@ export function BuilderClient({
           {isPro ? (
           <Accordion title="💌 Cerita & Sapaan">
             <Field label={`Sapaan Pembuka (${(content.greeting ?? "").length}/${MAX_GREETING_LEN})`}>
-              <textarea
+              <Textarea
                 value={content.greeting ?? ""}
                 onChange={(e) => patch({ greeting: e.target.value.slice(0, MAX_GREETING_LEN) })}
                 rows={2}
                 maxLength={MAX_GREETING_LEN}
                 placeholder="cth: Assalamu'alaikum Wr. Wb. — Dengan penuh syukur kami mengundang…"
-                className={`${inputClass} resize-none`}
+                className="resize-none"
               />
               <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                 Menggantikan salam bawaan template. Kosongkan untuk
@@ -911,13 +933,13 @@ export function BuilderClient({
               </p>
             </Field>
             <Field label={`Pesan Penutup (${(content.closingNote ?? "").length}/${MAX_CLOSING_NOTE_LEN})`}>
-              <textarea
+              <Textarea
                 value={content.closingNote ?? ""}
                 onChange={(e) => patch({ closingNote: e.target.value.slice(0, MAX_CLOSING_NOTE_LEN) })}
                 rows={2}
                 maxLength={MAX_CLOSING_NOTE_LEN}
                 placeholder="cth: Terima kasih atas doa & kehadiran Anda…"
-                className={`${inputClass} resize-none`}
+                className="resize-none"
               />
               <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                 Menggantikan ucapan terima kasih bawaan template. Kosongkan
@@ -984,22 +1006,21 @@ export function BuilderClient({
                   </div>
                 </div>
                 <Field label={`Judul (${s.title.length}/${MAX_STORY_TITLE_LEN})`}>
-                  <input
+                  <Input
                     value={s.title}
                     onChange={(e) => updateStory(i, { title: e.target.value.slice(0, MAX_STORY_TITLE_LEN) })}
                     maxLength={MAX_STORY_TITLE_LEN}
                     placeholder="cth: Awal Bertemu — 2019"
-                    className={inputClass}
                   />
                 </Field>
                 <Field label={`Isi Cerita (${s.text.length}/${MAX_STORY_TEXT_LEN})`}>
-                  <textarea
+                  <Textarea
                     value={s.text}
                     onChange={(e) => updateStory(i, { text: e.target.value.slice(0, MAX_STORY_TEXT_LEN) })}
                     rows={3}
                     maxLength={MAX_STORY_TEXT_LEN}
                     placeholder="Tulis momen berkesan secara singkat…"
-                    className={`${inputClass} resize-none`}
+                    className="resize-none"
                   />
                 </Field>
               </div>
@@ -1036,55 +1057,49 @@ export function BuilderClient({
             <p className="text-sm font-medium">Mempelai Pria</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Nama Lengkap">
-                <input
+                <Input
                   value={content.groomFullName}
                   onChange={(e) => patch({ groomFullName: e.target.value })}
                   placeholder="Andi Pratama"
-                  className={inputClass}
                 />
               </Field>
               <Field label="Nama Panggilan">
-                <input
+                <Input
                   value={content.groomNickname}
                   onChange={(e) => patch({ groomNickname: e.target.value })}
                   placeholder="Andi"
-                  className={inputClass}
                 />
               </Field>
             </div>
             <Field label="Nama Orang Tua (Pria)">
-              <input
+              <Input
                 value={content.groomParents}
                 onChange={(e) => patch({ groomParents: e.target.value })}
                 placeholder="Bpk. Harto & Ibu Wulan"
-                className={inputClass}
               />
             </Field>
             <p className="pt-2 text-sm font-medium">Mempelai Wanita</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Nama Lengkap">
-                <input
+                <Input
                   value={content.brideFullName}
                   onChange={(e) => patch({ brideFullName: e.target.value })}
                   placeholder="Sinta Dewi"
-                  className={inputClass}
                 />
               </Field>
               <Field label="Nama Panggilan">
-                <input
+                <Input
                   value={content.brideNickname}
                   onChange={(e) => patch({ brideNickname: e.target.value })}
                   placeholder="Sinta"
-                  className={inputClass}
                 />
               </Field>
             </div>
             <Field label="Nama Orang Tua (Wanita)">
-              <input
+              <Input
                 value={content.brideParents}
                 onChange={(e) => patch({ brideParents: e.target.value })}
                 placeholder="Bpk. Joko & Ibu Ratna"
-                className={inputClass}
               />
             </Field>
           </Accordion>
@@ -1307,28 +1322,25 @@ export function BuilderClient({
                 </div>
                 <div className="grid gap-3 sm:grid-cols-3">
                   <Field label="Bank">
-                    <input
+                    <Input
                       value={a.bank}
                       onChange={(e) => updateAccount(i, { bank: e.target.value })}
                       placeholder="BCA"
-                      className={inputClass}
                     />
                   </Field>
                   <Field label="No. Rekening">
-                    <input
+                    <Input
                       value={a.number}
                       onChange={(e) => updateAccount(i, { number: e.target.value })}
                       placeholder="1234567890"
                       inputMode="numeric"
-                      className={inputClass}
                     />
                   </Field>
                   <Field label="Atas Nama">
-                    <input
+                    <Input
                       value={a.holder}
                       onChange={(e) => updateAccount(i, { holder: e.target.value })}
                       placeholder="Andi Pratama"
-                      className={inputClass}
                     />
                   </Field>
                 </div>
@@ -1355,11 +1367,10 @@ export function BuilderClient({
               undangan. Kelola daftar tamu permanen di menu Tamu & RSVP.
             </p>
             <Field label="Nama Tamu">
-              <input
+              <Input
                 value={shareGuest}
                 onChange={(e) => setShareGuest(e.target.value)}
                 placeholder="cth: Budi"
-                className={inputClass}
               />
             </Field>
             {!shareSlug ? (
@@ -1413,7 +1424,7 @@ export function BuilderClient({
           <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="text-sm font-semibold tracking-tight">Live Preview</h2>
             <div className="flex items-center gap-2" title="Nama pratinjau hanya tampil di preview ini dan tidak tersimpan">
-              <input
+              <Input
                 value={previewGuest}
                 onChange={(e) => setPreviewGuest(e.target.value)}
                 placeholder="Pratinjau sbg tamu..."
@@ -1476,24 +1487,14 @@ export function BuilderClient({
               </p>
             )}
           </div>
-          <div className="mx-auto w-full max-w-[380px] overflow-hidden rounded-[2.5rem] border-[10px] border-zinc-900 bg-zinc-900 shadow-2xl dark:border-zinc-700">
-            <div className="mx-auto mt-2 h-5 w-28 rounded-full bg-zinc-900 dark:bg-zinc-700" />
-            <div className="h-[720px] overflow-y-auto rounded-b-[1.8rem] bg-white dark:bg-black">
-              <InvitationTemplate
-                key={`${previewKey}-${previewOpened}`}
-                title={title || "Undangan Digital"}
-                templateType={previewTemplateType}
-                content={previewContent}
-                guestName={previewGuest}
-                defaultOpened={previewOpened}
-                rsvpSlot={
-                  <div className="rounded-2xl border border-dashed border-zinc-300 p-4 text-center text-xs text-zinc-500 dark:border-zinc-700">
-                    Form Ucapan & RSVP akan tampil di sini pada halaman live.
-                  </div>
-                }
-              />
-            </div>
-          </div>
+          <BuilderPreview
+            title={deferredTitle || "Undangan Digital"}
+            templateType={previewTemplateType}
+            content={deferredPreviewContent}
+            guestName={deferredGuestName}
+            defaultOpened={previewOpened}
+            replayKey={previewKey}
+          />
           {proInfoTemplate && !isPro && resolveTemplate(proInfoTemplate) !== FREE_TEMPLATE_ID && (
             <ProTemplateInfoModal
               templateId={proInfoTemplate}

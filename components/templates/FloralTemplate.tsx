@@ -20,12 +20,13 @@ import {
   SafeImg,
   SectionHeading,
   useCountdown,
+  useCoverOpened,
 } from "./shared";
 import type { TemplateProps } from "./types";
 
 /** Floral Romance: pastel bunga, romantis, font serif italic. */
 export function FloralTemplate({ title, content, guestName, rsvpSlot, defaultOpened }: TemplateProps) {
-  const [opened, setOpened] = useState(defaultOpened ?? false);
+  const [opened, setOpened] = useCoverOpened(defaultOpened);
   const [muted, setMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const target = useMemo(() => eventTimestamp(content), [content]);

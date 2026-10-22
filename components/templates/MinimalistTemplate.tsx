@@ -17,12 +17,13 @@ import {
   Reveal,
   SafeImg,
   useCountdown,
+  useCoverOpened,
 } from "./shared";
 import type { TemplateProps } from "./types";
 
 /** Modern Minimalist: clean hitam-putih, sans-serif, presisi. */
 export function MinimalistTemplate({ title, content, guestName, rsvpSlot, defaultOpened }: TemplateProps) {
-  const [opened, setOpened] = useState(defaultOpened ?? false);
+  const [opened, setOpened] = useCoverOpened(defaultOpened);
   const [muted, setMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const target = useMemo(() => eventTimestamp(content), [content]);

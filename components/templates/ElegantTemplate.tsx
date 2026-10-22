@@ -25,12 +25,13 @@ import {
   SafeImg,
   SectionHeading,
   useCountdown,
+  useCoverOpened,
 } from "./shared";
 import type { TemplateProps } from "./types";
 
 /** Elegant Gold: mewah, latar gelap, aksen emas, font serif. */
 export function ElegantTemplate({ title, content, guestName, rsvpSlot, defaultOpened }: TemplateProps) {
-  const [opened, setOpened] = useState(defaultOpened ?? false);
+  const [opened, setOpened] = useCoverOpened(defaultOpened);
   const [muted, setMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const target = useMemo(() => eventTimestamp(content), [content]);

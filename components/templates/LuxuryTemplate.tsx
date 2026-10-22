@@ -26,6 +26,7 @@ import {
   SafeImg,
   SectionHeading,
   useCountdown,
+  useCoverOpened,
 } from "./shared";
 import type { TemplateProps } from "./types";
 
@@ -34,7 +35,7 @@ import type { TemplateProps } from "./types";
  * bingkai ganda, kartu kaca (glassmorphism), tipografi serif mewah.
  */
 export function LuxuryTemplate({ title, content, guestName, rsvpSlot, defaultOpened }: TemplateProps) {
-  const [opened, setOpened] = useState(defaultOpened ?? false);
+  const [opened, setOpened] = useCoverOpened(defaultOpened);
   const [muted, setMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const target = useMemo(() => eventTimestamp(content), [content]);

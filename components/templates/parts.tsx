@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import { eventTimestamp, type InvitationContent, type StoryEntry } from "@/lib/invitation";
-import { Reveal, useCountdown } from "./shared";
+import { Reveal, useCountdown, useCoverOpened } from "./shared";
 
 /**
  * State bersama seluruh template katalog baru: cover, audio backsound
@@ -13,14 +13,14 @@ export function useInvitationState(
   content: InvitationContent,
   defaultOpened?: boolean
 ) {
-  const [opened, setOpened] = useState(defaultOpened ?? false);
+  const [opened, setOpened] = useCoverOpened(defaultOpened);
   const [muted, setMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const target = useMemo(() => eventTimestamp(content), [content]);
   const open = useCallback(() => {
     setOpened(true);
     audioRef.current?.play().catch(() => {});
-  }, []);
+  }, [setOpened]);
   const toggleMuted = useCallback(() => {
     const a = audioRef.current;
     if (!a) return;
