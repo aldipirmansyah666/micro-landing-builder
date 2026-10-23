@@ -43,21 +43,36 @@ function envValue(name: string): string | undefined {
  *
  * Fallback HANYA untuk development lokal dan HANYA ke loopback.
  */
+function toOrigin(raw: string, source: string): string {
+  // VERCEL_URL/CF_PAGES_URL kadang tidak menyertakan skema.
+  const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw)
+    ? raw
+    : `https://${raw}`;
+  let parsed: URL;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    throw new Error(`${source} bukan URL yang valid`);
+  }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    throw new Error(`${source} harus memakai http atau https`);
+  }
+  // `origin` menormalisasi: membuang path, query, dan trailing slash.
+  return parsed.origin;
+}
+
 function appOrigin(req: Request): string {
   const configured = envValue("NEXT_PUBLIC_APP_URL") ?? envValue("APP_URL");
-  if (configured) {
-    let parsed: URL;
-    try {
-      parsed = new URL(configured);
-    } catch {
-      throw new Error("NEXT_PUBLIC_APP_URL bukan URL yang valid");
-    }
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-      throw new Error("NEXT_PUBLIC_APP_URL harus memakai http atau https");
-    }
-    // `origin` menormalisasi: membuang path, query, dan trailing slash.
-    return parsed.origin;
-  }
+  if (configured) return toOrigin(configured, "NEXT_PUBLIC_APP_URL/APP_URL");
+
+  // Fallback env platform yang DIISI OLEH PLATFORM (bukan header klien),
+  // sehingga aman dipakai saat NEXT_PUBLIC_APP_URL lupa di-set di Vercel /
+  // Cloudflare Pages.
+  const platform =
+    envValue("VERCEL_PROJECT_PRODUCTION_URL") ??
+    envValue("VERCEL_URL") ??
+    envValue("CF_PAGES_URL");
+  if (platform) return toOrigin(platform, "URL platform deployment");
 
   // Tanpa env: hanya development lokal yang boleh jalan, dan hanya ke
   // loopback. Di luar development → gagal (fail-closed).
@@ -71,19 +86,23 @@ function appOrigin(req: Request): string {
     return "http://localhost:3000";
   }
 
-  throw new Error("NEXT_PUBLIC_APP_URL belum dikonfigurasi");
+  throw new Error(
+    "NEXT_PUBLIC_APP_URL/APP_URL belum dikonfigurasi (fallback VERCEL_URL/CF_PAGES_URL juga kosong)"
+  );
 }
 
 function proPrice(): number | null {
-  const raw = process.env.PRO_PRICE_IDR;
+  const raw = envValue("PRO_PRICE_IDR");
   if (!raw) return null;
-  const n = parseFloat(raw);
+  const n = Number(raw);
   return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
 }
 
 function detectProvider(): Provider | null {
-  if (process.env.MIDTRANS_SERVER_KEY) return "midtrans";
-  if (process.env.XENDIT_SECRET_KEY) return "xendit";
+  // envValue() menolak string kosong / spasi, jadi key yang "ada tapi
+  // kosong" tidak lagi dianggap sebagai provider aktif.
+  if (envValue("MIDTRANS_SERVER_KEY")) return "midtrans";
+  if (envValue("XENDIT_SECRET_KEY")) return "xendit";
   return null;
 }
 
@@ -99,11 +118,16 @@ function basicAuth(secret: string): string {
  * (mis. key produksi dipakai ke sandbox), jadi dipetakan eksplisit.
  */
 function midtransBase(): string {
-  const override = process.env.MIDTRANS_API_BASE_URL?.trim();
+  const override = envValue("MIDTRANS_API_BASE_URL");
   if (override) return override.replace(/\/+$/, "");
-  return process.env.MIDTRANS_IS_PRODUCTION === "true"
+  return envValue("MIDTRANS_IS_PRODUCTION") === "true"
     ? "https://app.midtrans.com"
     : "https://app.sandbox.midtrans.com";
+}
+
+/** URL Snap.js harus mengikuti environment server (sandbox vs produksi). */
+function midtransSnapScriptUrl(): string {
+  return `${midtransBase()}/snap/snap.js`;
 }
 
 /**
@@ -138,6 +162,15 @@ export async function GET() {
     currency: "IDR",
     provider,
     configured: provider !== null && proPrice() !== null,
+    // Client Key memang publik (dipakai Snap.js). Dibaca dinamis di server
+    // agar tetap tersedia walau `NEXT_PUBLIC_*` tidak ter-inline saat build.
+    client_key:
+      provider === "midtrans"
+        ? envValue("NEXT_PUBLIC_MIDTRANS_CLIENT_KEY") ??
+          envValue("MIDTRANS_CLIENT_KEY") ??
+          null
+        : null,
+    snap_script_url: midtransSnapScriptUrl(),
   });
 }
 
@@ -148,7 +181,20 @@ async function createMidtransTransaction(input: {
   email?: string;
   origin: string;
 }): Promise<{ payment_url: string; snap_token?: string }> {
-  const serverKey = (process.env.MIDTRANS_SERVER_KEY as string).trim();
+  // Fail-fast: jangan pernah mengirim request dengan key undefined/kosong.
+  const serverKey = envValue("MIDTRANS_SERVER_KEY");
+  if (!serverKey) {
+    throw new Error(
+      "MIDTRANS_SERVER_KEY belum dikonfigurasi atau bernilai kosong"
+    );
+  }
+
+  // gross_amount WAJIB number (bukan string) dan bilangan bulat rupiah.
+  const grossAmount = Number(input.amount);
+  if (!Number.isFinite(grossAmount) || grossAmount <= 0) {
+    throw new Error(`gross_amount tidak valid: ${String(input.amount)}`);
+  }
+
   const base = midtransBase();
   const keyError = midtransKeyError(serverKey, base);
   if (keyError) throw new Error(keyError);
@@ -161,16 +207,19 @@ async function createMidtransTransaction(input: {
     body: JSON.stringify({
       transaction_details: {
         order_id: input.orderId,
-        gross_amount: input.amount,
+        // `Number` memastikan JSON berisi angka (49000), bukan "49000".
+        gross_amount: Math.round(grossAmount),
       },
       item_details: [
         {
           id: "pro-upgrade",
-          price: input.amount,
+          price: Math.round(grossAmount),
           quantity: 1,
-          name: `Upgrade PRO - ${input.slug}`,
+          // Midtrans membatasi panjang `name` (50 karakter).
+          name: `Upgrade PRO - ${input.slug}`.slice(0, 50),
         },
       ],
+      // Hanya kirim objek yang valid; `undefined` otomatis dihilangkan JSON.
       customer_details: input.email ? { email: input.email } : undefined,
       callbacks: { finish: `${input.origin}/dashboard` },
     }),
@@ -293,22 +342,28 @@ export async function POST(req: Request) {
       {
         error:
           "Layanan pembayaran sedang tidak tersedia. Silakan coba lagi nanti.",
+        code: "PAYMENT_ORIGIN_NOT_CONFIGURED",
       },
       { status: 503 }
     );
   }
 
-  const orderId = `pro-${slug}-${Date.now()}`;
-
-  await createPendingOrder({
-    order_id: orderId,
-    page_slug: slug,
-    amount,
-    provider,
-  });
+  // order_id unik per request: ORDER-<userId>-<timestamp>. Bagian userId
+  // disanitasi agar hanya karakter yang diterima Midtrans (alfanumerik,
+  // dash, underscore) dan panjang total tetap < 50 karakter.
+  const safeUserId =
+    userId.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 24) || "user";
+  const orderId = `ORDER-${safeUserId}-${Date.now()}`;
 
   try {
-    // `email` boleh null (user tanpa surel) — provider opsional 이를.
+    await createPendingOrder({
+      order_id: orderId,
+      page_slug: slug,
+      amount,
+      provider,
+    });
+
+    // `email` boleh null (user tanpa surel) — provider opsional.
     const customerEmail = email ?? undefined;
     const tx =
       provider === "midtrans"
@@ -331,13 +386,29 @@ export async function POST(req: Request) {
       order_id: orderId,
       provider,
       amount,
+      client_key:
+        provider === "midtrans"
+          ? envValue("NEXT_PUBLIC_MIDTRANS_CLIENT_KEY") ??
+            envValue("MIDTRANS_CLIENT_KEY") ??
+            null
+          : null,
+      snap_script_url: midtransSnapScriptUrl(),
       ...tx,
     });
   } catch (error) {
+    // Detail lengkap (termasuk body error Midtrans) hanya ke server log;
+    // response tetap membawa pesan yang bisa ditindaklanjuti.
+    if (provider === "midtrans") {
+      console.error("Midtrans Error:", error);
+    } else {
+      console.error("Xendit Error:", error);
+    }
     return NextResponse.json(
       {
         error:
           error instanceof Error ? error.message : "Gagal membuat transaksi",
+        provider,
+        order_id: orderId,
       },
       { status: 502 }
     );

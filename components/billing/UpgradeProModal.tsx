@@ -24,6 +24,92 @@ interface CheckoutInfo {
   currency: string;
   provider: "midtrans" | "xendit" | null;
   configured: boolean;
+  client_key: string | null;
+  snap_script_url: string;
+}
+
+interface SnapResult {
+  order_id?: string;
+  transaction_status?: string;
+}
+
+interface SnapCallbacks {
+  onSuccess?: (result: SnapResult) => void;
+  onPending?: (result: SnapResult) => void;
+  onError?: (result: SnapResult) => void;
+  onClose?: () => void;
+}
+
+interface SnapApi {
+  pay(token: string, callbacks?: SnapCallbacks): void;
+}
+
+const DEFAULT_SNAP_SCRIPT_URL =
+  "https://app.sandbox.midtrans.com/snap/snap.js";
+const SNAP_SCRIPT_ID = "midtrans-snap-script";
+
+function getSnap(): SnapApi | undefined {
+  return (window as Window & { snap?: SnapApi }).snap;
+}
+
+/**
+ * Muat Snap.js satu kali dengan `data-client-key` yang benar, lalu tunggu
+ * sampai `window.snap` tersedia sebelum memanggil `snap.pay()`.
+ */
+function loadSnap(clientKey: string, scriptUrl: string): Promise<void> {
+  if (getSnap()) return Promise.resolve();
+
+  return new Promise((resolve, reject) => {
+    const waitUntilReady = () => {
+      const started = Date.now();
+      const tick = () => {
+        if (getSnap()) return resolve();
+        if (Date.now() - started > 10_000) {
+          return reject(new Error("Midtrans Snap tidak merespons"));
+        }
+        window.setTimeout(tick, 100);
+      };
+      tick();
+    };
+
+    const existing = document.getElementById(
+      SNAP_SCRIPT_ID
+    ) as HTMLScriptElement | null;
+
+    if (existing) {
+      if (existing.dataset.loaded === "true") {
+        waitUntilReady();
+      } else {
+        existing.addEventListener("load", waitUntilReady, { once: true });
+        existing.addEventListener(
+          "error",
+          () => reject(new Error("Gagal memuat Midtrans Snap")),
+          { once: true }
+        );
+      }
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = SNAP_SCRIPT_ID;
+    script.src = scriptUrl || DEFAULT_SNAP_SCRIPT_URL;
+    script.async = true;
+    script.setAttribute("data-client-key", clientKey);
+    script.addEventListener(
+      "load",
+      () => {
+        script.dataset.loaded = "true";
+        waitUntilReady();
+      },
+      { once: true }
+    );
+    script.addEventListener(
+      "error",
+      () => reject(new Error("Gagal memuat Midtrans Snap")),
+      { once: true }
+    );
+    document.body.appendChild(script);
+  });
 }
 
 export function UpgradeProButton({ slug }: { slug: string }) {
@@ -54,6 +140,7 @@ export function UpgradeProButton({ slug }: { slug: string }) {
   async function handlePay() {
     setPaying(true);
     setError(null);
+    setPaid(false);
     try {
       const res = await fetch("/api/checkout/pro", {
         method: "POST",
@@ -64,14 +151,68 @@ export function UpgradeProButton({ slug }: { slug: string }) {
         ok?: boolean;
         alreadyPro?: boolean;
         payment_url?: string;
+        snap_token?: string;
+        client_key?: string | null;
+        snap_script_url?: string;
         error?: string;
       };
       if (data.alreadyPro) {
         setPaid(true);
         return;
       }
-      if (!res.ok || !data.payment_url) {
+      if (!res.ok) {
         throw new Error(data.error ?? "Gagal membuat transaksi");
+      }
+
+      const clientKey =
+        data.client_key ??
+        info?.client_key ??
+        process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY;
+
+      // Jalur utama: popup Snap (butuh snap_token + Client Key).
+      if (data.snap_token && clientKey) {
+        try {
+          await loadSnap(
+            clientKey,
+            data.snap_script_url ||
+              info?.snap_script_url ||
+              DEFAULT_SNAP_SCRIPT_URL
+          );
+          const snap = getSnap();
+          if (snap) {
+            // Midtrans bisa memanggil onClose setelah onSuccess/onPending;
+            // jangan biarkan pesan "dibatalkan" menimpa status sukses.
+            let settled = false;
+            snap.pay(data.snap_token, {
+              onSuccess: () => {
+                settled = true;
+                setPaid(true);
+              },
+              onPending: () => {
+                settled = true;
+                setPaid(true);
+              },
+              onError: () => {
+                settled = true;
+                setError("Pembayaran gagal diproses Midtrans.");
+              },
+              onClose: () => {
+                if (!settled) {
+                  setError("Jendela pembayaran ditutup sebelum selesai.");
+                }
+              },
+            });
+            return;
+          }
+        } catch (snapError) {
+          // Jangan blokir pembayaran: lanjut ke redirect_url sebagai fallback.
+          console.error("Midtrans Snap Error:", snapError);
+        }
+      }
+
+      // Fallback: halaman pembayaran Midtrans di tab baru.
+      if (!data.payment_url) {
+        throw new Error("Midtrans tidak mengembalikan URL pembayaran");
       }
       window.open(data.payment_url, "_blank", "noopener");
       setPaid(true);

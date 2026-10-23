@@ -6,7 +6,9 @@
     "build": "next build",
     "dev": "next dev",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:palette": "node scripts/check-palette-coverage.mjs",
+    "check:parity": "node scripts/check-template-parity.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.14",

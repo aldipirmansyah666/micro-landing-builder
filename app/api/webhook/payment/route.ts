@@ -10,8 +10,8 @@ import {
 /**
  * Webhook pembayaran (Midtrans & Xendit) untuk upgrade landing page ke Pro.
  *
- * Konvensi order ID (satu-satunya sumber slug): `pro-<slug>` atau
- * `pro-<slug>-<timestamp>` (cth: `pro-andi-sinta-1730000000000`).
+ * Konvensi order ID checkout: `ORDER-<userId>-<timestamp>`.
+ * Format lama `pro-<slug>-<timestamp>` tetap didukung.
  *
  * KEAMANAN — slug TIDAK boleh diambil dari field yang tidak ditandatangani:
  * `signature_key` Midtrans hanya mencakup
@@ -22,7 +22,8 @@ import {
  * upgrade ke halaman orang lain. Karena itu field-field tersebut
  * diabaikan sepenuhnya; target upgrade hanya boleh berasal dari
  * `order_id`/`external_id` yang terverifikasi, lalu dicocokkan dengan
- * baris `orders` di database.
+ * baris `orders` di database. `orders.page_slug` (dicatat server saat
+ * checkout oleh user terautentikasi) adalah sumber otoritatif.
  *
  * Env wajib (fail-closed: ditolak 401 bila belum di-set):
  * - MIDTRANS_SERVER_KEY  : verifikasi `signature_key` Midtrans
@@ -75,7 +76,9 @@ function asString(value: unknown): string {
 }
 
 /**
- * Ekstrak slug dari order ID `pro-<slug>[-<timestamp>]`.
+ * [LEGACY] Ekstrak slug dari order ID lama `pro-<slug>[-<timestamp>]`.
+ * Order baru `ORDER-<userId>-<timestamp>` tidak memuat slug; webhook
+ * memakai `orders.page_slug` sebagai sumber otoritatif.
  * Mengembalikan null bila format tidak cocok.
  */
 export function slugFromOrderId(orderId: string): string | null {
@@ -220,15 +223,6 @@ export async function POST(req: Request) {
     );
   }
 
-  const slug = slugFromOrderId(orderId);
-  if (!slug) {
-    return NextResponse.json(
-      { error: "Slug tidak dapat diturunkan dari order_id" },
-      { status: 400 }
-    );
-  }
-
-  // Cross-check dengan baris order: halaman mana yang sebenarnya dibayar.
   // Baris `orders` dicatat saat checkout dan tidak pernah diubah oleh
   // upsertPaidOrder (ON CONFLICT hanya menyentuh status/updated_at),
   // sehingga `page_slug` di sini adalah catatan otoritatif.
@@ -242,9 +236,15 @@ export async function POST(req: Request) {
       { status: 404 }
     );
   }
-  if (orderRow.page_slug !== slug) {
+
+  const slug = orderRow.page_slug;
+
+  // Kompatibilitas order lama: bila order_id masih memuat slug, pastikan
+  // cocok dengan baris database. Order baru tidak memuat slug (null).
+  const legacySlug = slugFromOrderId(orderId);
+  if (legacySlug && legacySlug !== slug) {
     console.error(
-      `[payment-webhook] order ${orderId} page_slug '${orderRow.page_slug}' tidak cocok dengan slug dari order_id '${slug}' — upgrade ditolak`
+      `[payment-webhook] order ${orderId} page_slug '${slug}' tidak cocok dengan slug dari order_id '${legacySlug}' — upgrade ditolak`
     );
     return NextResponse.json(
       { error: "Order tidak cocok dengan halaman yang dituju" },
