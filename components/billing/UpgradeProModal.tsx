@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Crown, ExternalLink, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, Crown, ExternalLink, Loader2, RefreshCw } from "lucide-react";
 import { Dialog } from "@/design-system/primitives";
+import { useProStatus } from "./useProStatus";
 
 const PRO_BENEFITS = [
   "Semua template undangan (Elegant, Rustic, Floral, Minimalist)",
@@ -112,18 +113,77 @@ function loadSnap(clientKey: string, scriptUrl: string): Promise<void> {
   });
 }
 
+function isAbortError(error: unknown): boolean {
+  return (
+    (error instanceof DOMException || error instanceof Error) &&
+    error.name === "AbortError"
+  );
+}
+
 export function UpgradeProButton({ slug }: { slug: string }) {
   const [open, setOpen] = useState(false);
   const [info, setInfo] = useState<CheckoutInfo | null>(null);
   const [loadingInfo, setLoadingInfo] = useState(false);
   const [paying, setPaying] = useState(false);
   const [paid, setPaid] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { syncProStatus, waitForProActivation } = useProStatus();
+
+  /**
+   * Setiap percobaan bayar punya ID. Callback Snap dari popup lama
+   * (mis. user menutup lalu membuka lagi) diabaikan agar tidak memicu
+   * state update berulang yang membuat UI freeze.
+   */
+  const paySessionRef = useRef(0);
+  const settledRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      abortRef.current?.abort();
+      abortRef.current = null;
+    };
+  }, []);
+
+  function cancelPendingWork() {
+    abortRef.current?.abort();
+    abortRef.current = null;
+  }
+
+  function closeModalCleanly() {
+    cancelPendingWork();
+    if (!mountedRef.current) return;
+    setOpen(false);
+    setPaying(false);
+    setVerifying(false);
+  }
+
+  function handleModalClose() {
+    // Invalidasi callback Snap yang mungkin masih tertunda.
+    paySessionRef.current += 1;
+    cancelPendingWork();
+    setOpen(false);
+    setPaying(false);
+    setVerifying(false);
+  }
+
   async function handleOpen() {
+    // Invalidasi callback dari sesi pembayaran sebelumnya.
+    paySessionRef.current += 1;
+    settledRef.current = false;
+    cancelPendingWork();
+
     setOpen(true);
     setError(null);
     setPaid(false);
+    setVerifying(false);
+    setPaying(false);
+
     if (!info) {
       setLoadingInfo(true);
       try {
@@ -137,10 +197,131 @@ export function UpgradeProButton({ slug }: { slug: string }) {
     }
   }
 
+  /**
+   * Snap `onSuccess`: webhook Midtrans sering tiba beberapa detik setelah
+   * callback browser. Polling singkat + reload Clerk/router membuat status
+   * PRO langsung terlihat tanpa user harus refresh manual.
+   */
+  async function finishSnapPayment(sessionId: number) {
+    if (sessionId !== paySessionRef.current || settledRef.current) return;
+    settledRef.current = true;
+    setPaid(true);
+    setVerifying(true);
+    setPaying(false);
+    setError(null);
+
+    const controller = new AbortController();
+    abortRef.current?.abort();
+    abortRef.current = controller;
+
+    try {
+      const active = await waitForProActivation(slug, {
+        attempts: 8,
+        intervalMs: 1500,
+        signal: controller.signal,
+      });
+
+      if (!mountedRef.current || sessionId !== paySessionRef.current) return;
+
+      await syncProStatus();
+
+      if (!mountedRef.current || sessionId !== paySessionRef.current) return;
+
+      if (active) {
+        closeModalCleanly();
+      } else {
+        setVerifying(false);
+        setError(
+          'Pembayaran diterima, tetapi status PRO belum tercatat di server. Klik "Cek Status Pembayaran" beberapa saat lagi.'
+        );
+      }
+    } catch (err) {
+      if (isAbortError(err)) return;
+      console.error("Gagal memverifikasi status PRO:", err);
+      if (mountedRef.current && sessionId === paySessionRef.current) {
+        setVerifying(false);
+        setError(
+          "Pembayaran diterima, tetapi verifikasi status PRO gagal. Klik Cek Status Pembayaran."
+        );
+      }
+    } finally {
+      if (abortRef.current === controller) abortRef.current = null;
+    }
+  }
+
+  /**
+   * Snap `onPending` (VA/QRIS): bukan pembayaran final. Tutup modal dan
+   * bersihkan loader, lalu biarkan webhook + listener pageshow/visibility
+   * yang menyegarkan status saat pembayaran benar-benar settle.
+   */
+  async function finishPendingPayment(sessionId: number) {
+    if (sessionId !== paySessionRef.current || settledRef.current) return;
+    settledRef.current = true;
+    setPaid(true);
+    setPaying(false);
+
+    try {
+      await syncProStatus();
+    } finally {
+      closeModalCleanly();
+    }
+  }
+
+  /** Tombol "Cek Status Pembayaran" — polling singkat sebelum refresh. */
+  async function handleCheckStatus() {
+    const sessionId = paySessionRef.current;
+    const controller = new AbortController();
+    abortRef.current?.abort();
+    abortRef.current = controller;
+
+    setVerifying(true);
+    setPaying(false);
+    setError(null);
+
+    try {
+      const active = await waitForProActivation(slug, {
+        attempts: 4,
+        intervalMs: 1500,
+        signal: controller.signal,
+      });
+
+      if (!mountedRef.current || sessionId !== paySessionRef.current) return;
+
+      await syncProStatus();
+
+      if (!mountedRef.current || sessionId !== paySessionRef.current) return;
+
+      if (active) {
+        closeModalCleanly();
+      } else {
+        setVerifying(false);
+        setError(
+          "Status PRO belum tercatat. Tunggu beberapa saat lalu klik Cek Status lagi."
+        );
+      }
+    } catch (err) {
+      if (isAbortError(err)) return;
+      console.error("Gagal memeriksa status PRO:", err);
+      if (mountedRef.current && sessionId === paySessionRef.current) {
+        setVerifying(false);
+        setError("Gagal memeriksa status pembayaran. Silakan coba lagi.");
+      }
+    } finally {
+      if (abortRef.current === controller) abortRef.current = null;
+    }
+  }
+
   async function handlePay() {
+    const sessionId = paySessionRef.current + 1;
+    paySessionRef.current = sessionId;
+    settledRef.current = false;
+    cancelPendingWork();
+
     setPaying(true);
     setError(null);
     setPaid(false);
+    setVerifying(false);
+
     try {
       const res = await fetch("/api/checkout/pro", {
         method: "POST",
@@ -156,8 +337,12 @@ export function UpgradeProButton({ slug }: { slug: string }) {
         snap_script_url?: string;
         error?: string;
       };
+
+      if (sessionId !== paySessionRef.current) return;
+
       if (data.alreadyPro) {
-        setPaid(true);
+        await syncProStatus();
+        if (sessionId === paySessionRef.current) closeModalCleanly();
         return;
       }
       if (!res.ok) {
@@ -178,30 +363,43 @@ export function UpgradeProButton({ slug }: { slug: string }) {
               info?.snap_script_url ||
               DEFAULT_SNAP_SCRIPT_URL
           );
+
+          if (sessionId !== paySessionRef.current) return;
+
           const snap = getSnap();
           if (snap) {
-            // Midtrans bisa memanggil onClose setelah onSuccess/onPending;
-            // jangan biarkan pesan "dibatalkan" menimpa status sukses.
-            let settled = false;
             snap.pay(data.snap_token, {
               onSuccess: () => {
-                settled = true;
-                setPaid(true);
+                void finishSnapPayment(sessionId);
               },
               onPending: () => {
-                settled = true;
-                setPaid(true);
+                void finishPendingPayment(sessionId);
               },
               onError: () => {
-                settled = true;
+                if (
+                  sessionId !== paySessionRef.current ||
+                  settledRef.current
+                ) {
+                  return;
+                }
+                settledRef.current = true;
+                setPaying(false);
                 setError("Pembayaran gagal diproses Midtrans.");
               },
               onClose: () => {
-                if (!settled) {
-                  setError("Jendela pembayaran ditutup sebelum selesai.");
+                if (
+                  sessionId !== paySessionRef.current ||
+                  settledRef.current
+                ) {
+                  return;
                 }
+                setPaying(false);
+                setError("Jendela pembayaran ditutup sebelum selesai.");
               },
             });
+            // Popup Snap sudah terbuka; jangan biarkan modal kita
+            // meninggalkan state loading yang membuat tombol terasa freeze.
+            setPaying(false);
             return;
           }
         } catch (snapError) {
@@ -215,10 +413,12 @@ export function UpgradeProButton({ slug }: { slug: string }) {
         throw new Error("Midtrans tidak mengembalikan URL pembayaran");
       }
       window.open(data.payment_url, "_blank", "noopener");
+      settledRef.current = true;
       setPaid(true);
+      setPaying(false);
     } catch (err) {
+      if (sessionId !== paySessionRef.current) return;
       setError(err instanceof Error ? err.message : "Gagal membuat transaksi");
-    } finally {
       setPaying(false);
     }
   }
@@ -237,7 +437,7 @@ export function UpgradeProButton({ slug }: { slug: string }) {
       {open && (
         <Dialog
           open={open}
-          onClose={() => setOpen(false)}
+          onClose={handleModalClose}
           title={
             <>
               <Crown className="h-5 w-5 text-amber-500" />
@@ -276,29 +476,46 @@ export function UpgradeProButton({ slug }: { slug: string }) {
             )}
           </div>
 
+          {verifying && (
+            <p className="mt-3 flex items-center justify-center gap-2 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Memverifikasi pembayaran dan mengaktifkan PRO...
+            </p>
+          )}
           {error && (
             <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>
           )}
-          {paid && (
+          {paid && !verifying && (
             <p className="mt-3 rounded-2xl bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950 dark:text-green-300">
-              Halaman pembayaran dibuka di tab baru. Status PRO aktif otomatis
-              setelah pembayaran terkonfirmasi — refresh halaman ini untuk melihatnya.
+              Pembayaran diterima. Klik &quot;Cek Status Pembayaran&quot; untuk
+              memastikan webhook Midtrans sudah memperbarui status PRO.
             </p>
           )}
 
-          <button
-            type="button"
-            onClick={() => void handlePay()}
-            disabled={paying || loadingInfo || !info?.configured}
-            className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-amber-400 text-sm font-semibold text-amber-950 transition-colors hover:bg-amber-300 disabled:opacity-50"
-          >
-            {paying ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <ExternalLink className="h-4 w-4" />
-            )}
-            Bayar Sekarang
-          </button>
+          {paid && !verifying ? (
+            <button
+              type="button"
+              onClick={() => void handleCheckStatus()}
+              className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-amber-400 text-sm font-semibold text-amber-950 transition-colors hover:bg-amber-300"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Cek Status Pembayaran
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void handlePay()}
+              disabled={paying || verifying || loadingInfo || !info?.configured}
+              className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-amber-400 text-sm font-semibold text-amber-950 transition-colors hover:bg-amber-300 disabled:opacity-50"
+            >
+              {paying || verifying ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ExternalLink className="h-4 w-4" />
+              )}
+              {verifying ? "Memverifikasi..." : "Bayar Sekarang"}
+            </button>
+          )}
         </Dialog>
       )}
     </>

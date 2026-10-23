@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { ClerkProvider } from "@clerk/nextjs";
+import { ProStatusSync } from "@/components/billing/ProStatusSync";
 
 /**
  * Layout untuk area yang MEMBUTUHKAN autentikasi Clerk.
@@ -14,5 +15,14 @@ import { ClerkProvider } from "@clerk/nextjs";
  * scope paling kecil yang membutuhkannya.
  */
 export default function AuthLayout({ children }: { children: ReactNode }) {
-  return <ClerkProvider>{children}</ClerkProvider>;
+  return (
+    <ClerkProvider>
+      {/* `usePathname()` hanya tersedia saat runtime — Suspense mencegah
+          halaman auth (sign-in/sign-up) gagal di-prerender. */}
+      <Suspense fallback={null}>
+        <ProStatusSync />
+      </Suspense>
+      {children}
+    </ClerkProvider>
+  );
 }
