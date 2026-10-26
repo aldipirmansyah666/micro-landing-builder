@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "check:palette": "node scripts/check-palette-coverage.mjs",
-    "check:parity": "node scripts/check-template-parity.mjs"
+    "check:parity": "node scripts/check-template-parity.mjs",
+    "check:midtrans": "node --env-file=.env.local scripts/check-midtrans-e2e.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.14",
