@@ -33,7 +33,7 @@ import type {
  *   - tiap template cukup supplying `config` (gaya) + `slots` (blok khas).
  *
  * Hasil render tetap identik dengan versi per-template sebelumnya karena
- * semua class datang dari `config` apa adanya (lihat `presets.ts`).
+ * semua class datang dari `config` apa adanya.
  */
 export function InvitationLayout({
   content,
@@ -53,6 +53,7 @@ export function InvitationLayout({
 
   return (
     <div className={config.root}>
+      {slots.background}
       {content.backsoundUrl && (
         <audio ref={audioRef} src={content.backsoundUrl} loop preload="none" />
       )}
@@ -74,46 +75,76 @@ export function InvitationLayout({
         <MusicToggle muted={muted} onToggle={toggleMuted} />
       )}
 
+      {slots.beforeContainer}
+
       <div className={config.container}>
         {slots.hero}
         {slots.heroImage}
         {slots.quote}
 
-        <CoupleSection
-          content={content}
-          style={config.couple}
-          leading={slots.coupleLeading}
-        />
+        {(() => {
+          const sections = (
+            <>
+              {slots.beforeCouple}
+              <CoupleSection
+                content={content}
+                style={config.couple}
+                leading={slots.coupleLeading}
+              />
 
-        <StorySection content={content} style={config.story} />
+              <StorySection content={content} style={config.story} />
 
-        <CountdownSection
-          style={config.countdown}
-          opened={opened}
-          target={target}
-        />
+              <CountdownSection
+                style={config.countdown}
+                opened={opened}
+                target={target}
+              />
 
-        <EventSection content={content} style={config.event} />
+              <EventSection content={content} style={config.event} />
 
-        <GallerySection content={content} style={config.gallery} />
+              <GallerySection content={content} style={config.gallery} />
 
-        <AccountsSection content={content} style={config.accounts} />
+              <AccountsSection content={content} style={config.accounts} />
 
-        <ExtraLinksSection content={content} />
+              <ExtraLinksSection
+                content={content}
+                style={config.extraLinks}
+              />
 
-        <RsvpSection style={config.rsvp}>{rsvpSlot}</RsvpSection>
+              <RsvpSection style={config.rsvp}>{rsvpSlot}</RsvpSection>
 
-        {content.closingNote !== undefined ? (
-          content.closingNote ? (
-            <p className={config.closing.wrapper}>{content.closingNote}</p>
-          ) : null
-        ) : (
-          <p className={config.closing.wrapper}>
-            {config.closing.defaultText}
-          </p>
-        )}
-        <p className={config.closing.names}>{names}</p>
+              {config.closing.render ? (
+                config.closing.render({
+                  note: content.closingNote,
+                  names,
+                  defaultText: config.closing.defaultText,
+                })
+              ) : content.closingNote !== undefined ? (
+                content.closingNote ? (
+                  <p className={config.closing.wrapper}>
+                    {content.closingNote}
+                  </p>
+                ) : null
+              ) : (
+                <p className={config.closing.wrapper}>
+                  {config.closing.defaultText}
+                </p>
+              )}
+              {!config.closing.render && (
+                <p className={config.closing.names}>{names}</p>
+              )}
+            </>
+          );
+
+          return config.sectionsWrapper ? (
+            <div className={config.sectionsWrapper}>{sections}</div>
+          ) : (
+            sections
+          );
+        })()}
       </div>
+
+      {slots.afterContainer}
     </div>
   );
 }

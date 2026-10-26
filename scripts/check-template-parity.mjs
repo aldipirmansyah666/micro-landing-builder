@@ -54,7 +54,10 @@ const BASE = `http://127.0.0.1:${PORT}`;
 /** Buang bagian yang memang berubah tiap build (hash chunk & build id). */
 function normalize(html) {
   const body = html.slice(html.indexOf("<body"), html.indexOf("</body>") + 7);
-  return body.replace(/<script[\s\S]*?<\/script>/g, "").trim();
+  return body
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<script[\s\S]*?<\/script>/g, "")
+    .trim();
 }
 
 async function waitForServer(url, timeoutMs = 60000, headers = {}) {

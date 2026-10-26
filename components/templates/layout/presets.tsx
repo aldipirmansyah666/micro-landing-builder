@@ -38,6 +38,8 @@ export const ARUNA_LAYOUT: InvitationLayoutConfig = {
     name: "text-3xl font-medium text-[#2e2b26]",
     full: "mt-1 font-sans text-sm text-[#5c574c]",
     parents: "mt-2 font-sans text-xs text-[#8a8474]",
+    photoClass:
+      "mx-auto mb-4 h-28 w-28 rounded-full border border-[#c9a96a]/40 object-cover",
   },
 
   story: {
@@ -91,6 +93,7 @@ export const ARUNA_LAYOUT: InvitationLayoutConfig = {
   },
 
   accounts: {
+    layout: "stack",
     wrapper: SECTION_WRAPPER,
     title: "Tanda Kasih",
     headingClass: SECTION_HEADING,
@@ -103,6 +106,13 @@ export const ARUNA_LAYOUT: InvitationLayoutConfig = {
     holder: "mt-0.5 font-sans text-xs text-[#8a8474]",
     copyWrapper: "mt-3",
     copy: "bg-[#3d3a34] text-white",
+  },
+
+  extraLinks: {
+    wrapper: "mt-12 border-t border-[#c9a96a]/40 pt-8 text-center",
+    grid: "mt-5 grid gap-2",
+    link:
+      "inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#3d3a34] px-6 font-sans text-sm font-medium transition-colors hover:bg-[#3d3a34] hover:text-white",
   },
 
   rsvp: {
