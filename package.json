@@ -7,9 +7,12 @@
     "dev": "next dev",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "check:palette": "node scripts/check-palette-coverage.mjs",
     "check:parity": "node scripts/check-template-parity.mjs",
-    "check:midtrans": "node --env-file=.env.local scripts/check-midtrans-e2e.mjs"
+    "check:upload": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/check-upload-validation.mjs",
+    "check:midtrans": "node --env-file=.env.local scripts/check-midtrans-e2e.mjs",
+    "cleanup:uploads": "node --env-file=.env.local scripts/cleanup-orphan-uploads.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.14",

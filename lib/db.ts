@@ -257,6 +257,21 @@ export interface LandingPageWithOwner extends LandingPage {
   owner_email: string | null;
 }
 
+export interface LandingPageAdminStats {
+  total: number;
+  pro: number;
+}
+
+export async function getLandingPageAdminStats(): Promise<LandingPageAdminStats> {
+  const rows = (await sql`
+    SELECT
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE is_pro)::int AS pro
+    FROM landing_pages;
+  `) as LandingPageAdminStats[];
+  return rows[0] ?? { total: 0, pro: 0 };
+}
+
 export interface LandingPageBasic {
   id: number;
   slug: string;

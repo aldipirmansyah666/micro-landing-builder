@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import {
   formatDateLong,
+  instagramHandle,
   instagramHref,
   type InvitationContent,
 } from "@/lib/invitation";
@@ -52,6 +53,7 @@ function coupleDetail(
   total: number
 ): React.ReactNode {
   const instagram = instagramHref(entry.instagram);
+  const instagramLabel = instagramHandle(entry.instagram);
   const parentsClass = resolveClass(style.parents, entry, index, total);
   const instagramClass = style.instagramClass ?? parentsClass;
   return (
@@ -72,7 +74,7 @@ function coupleDetail(
           rel="noopener noreferrer"
           className={`${instagramClass} inline-flex items-center gap-1 underline underline-offset-2`}
         >
-          Instagram
+          {instagramLabel || "Instagram"}
           <ExternalLink className="h-3 w-3" />
         </a>
       )}
@@ -91,7 +93,12 @@ export function CoupleSection({
   leading?: React.ReactNode;
 }) {
   const entries = coupleEntries(content).filter(
-    (p) => p.nick || p.parents || p.photo
+    (p) =>
+      p.nick ||
+      p.parents ||
+      p.childOrder ||
+      p.photo ||
+      instagramHref(p.instagram)
   );
   const total = entries.length;
 
@@ -116,6 +123,7 @@ export function CoupleSection({
 
           if (style.layout === "row") {
             const instagram = instagramHref(p.instagram);
+            const instagramLabel = instagramHandle(p.instagram);
             const instagramClass = style.instagramClass ?? parentsClass;
             return (
               <div key={p.key} className={itemClass || undefined}>
@@ -154,7 +162,7 @@ export function CoupleSection({
                     rel="noopener noreferrer"
                     className={`${instagramClass} inline-flex items-center gap-1 underline underline-offset-2`}
                   >
-                    Instagram
+                    {instagramLabel || "Instagram"}
                     <ExternalLink className="h-3 w-3" />
                   </a>
                 )}
@@ -183,7 +191,7 @@ export function CoupleSection({
                       rel="noopener noreferrer"
                       className={`${style.instagramClass ?? parentsClass} inline-flex items-center gap-1 underline underline-offset-2`}
                     >
-                      Instagram
+                      {instagramHandle(p.instagram) || "Instagram"}
                       <ExternalLink className="h-3 w-3" />
                     </a>
                   )}

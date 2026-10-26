@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import {
   Calendar,
+  ExternalLink,
   Flower2,
   Gift,
   Images,
@@ -10,7 +11,13 @@ import {
   MessageCircleHeart,
   Navigation,
 } from "lucide-react";
-import { coupleNames, eventTimestamp, formatDateLong } from "@/lib/invitation";
+import {
+  coupleNames,
+  eventTimestamp,
+  formatDateLong,
+  instagramHandle,
+  instagramHref,
+} from "@/lib/invitation";
 import {
   CopyRekeningButton,
   CoverOverlay,
@@ -92,18 +99,32 @@ export function FloralTemplate({ title, content, guestName, rsvpSlot, defaultOpe
           <OrnateDivider lineClass="bg-rose-300" ornament="❀" className="mx-auto mt-4 max-w-44 text-rose-400" />
           <div className="mt-5 grid gap-3">
             {[
-              { nick: content.groomNickname || content.groomFullName, full: content.groomFullName, parents: content.groomParents, label: "Putra dari" },
-              { nick: content.brideNickname || content.brideFullName, full: content.brideFullName, parents: content.brideParents, label: "Putri dari" },
+              { nick: content.groomNickname || content.groomFullName, full: content.groomFullName, parents: content.groomParents, childOrder: content.groomChildOrder, instagram: content.groomInstagram, label: "Putra dari" },
+              { nick: content.brideNickname || content.brideFullName, full: content.brideFullName, parents: content.brideParents, childOrder: content.brideChildOrder, instagram: content.brideInstagram, label: "Putri dari" },
             ].map(
               (p) =>
-                (p.nick || p.parents) && (
+                (p.nick || p.parents || p.childOrder || instagramHref(p.instagram)) && (
                   <div key={p.label} className={`rounded-[2rem] border px-5 py-5 shadow-sm shadow-rose-100 ${card}`}>
                     <p className="text-2xl font-semibold text-rose-900 italic">{p.nick || "-"}</p>
                     {p.full && p.full !== p.nick && (
                       <p className="mt-0.5 text-sm text-rose-900/60">{p.full}</p>
                     )}
+                    {p.childOrder && (
+                      <p className="mt-2 text-xs text-rose-900/50">Anak ke-{p.childOrder}</p>
+                    )}
                     {p.parents && (
-                      <p className="mt-2 text-xs text-rose-900/50">{p.label} {p.parents}</p>
+                      <p className="mt-1 text-xs text-rose-900/50">{p.label} {p.parents}</p>
+                    )}
+                    {instagramHref(p.instagram) && (
+                      <a
+                        href={instagramHref(p.instagram)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-flex items-center gap-1 text-xs text-rose-900/50 underline underline-offset-2"
+                      >
+                        {instagramHandle(p.instagram) || "Instagram"}
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
                     )}
                   </div>
                 )

@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import {
   Calendar,
+  ExternalLink,
   Flower2,
   Gift,
   Images,
@@ -15,6 +16,8 @@ import {
   coupleNames,
   eventTimestamp,
   formatDateLong,
+  instagramHandle,
+  instagramHref,
 } from "@/lib/invitation";
 import {
   CopyRekeningButton,
@@ -114,19 +117,33 @@ export function SageTemplate({ title, content, guestName, rsvpSlot, defaultOpene
             <OrnateDivider lineClass="bg-[#8a9b85]/50" ornament="❧" className={`mx-auto mt-4 max-w-48 ${tone}`} />
             <div className="mt-5 grid gap-3">
               {[
-                { nick: content.groomNickname || content.groomFullName, full: content.groomFullName, parents: content.groomParents, label: "Putra dari" },
-                { nick: content.brideNickname || content.brideFullName, full: content.brideFullName, parents: content.brideParents, label: "Putri dari" },
+                { nick: content.groomNickname || content.groomFullName, full: content.groomFullName, parents: content.groomParents, childOrder: content.groomChildOrder, instagram: content.groomInstagram, label: "Putra dari" },
+                { nick: content.brideNickname || content.brideFullName, full: content.brideFullName, parents: content.brideParents, childOrder: content.brideChildOrder, instagram: content.brideInstagram, label: "Putri dari" },
               ].map(
                 (p) =>
-                  (p.nick || p.parents) && (
+                  (p.nick || p.parents || p.childOrder || instagramHref(p.instagram)) && (
                     <div key={p.label} className={`rounded-[1.75rem] border px-5 py-6 ${card}`}>
                       <Flower2 className="mx-auto h-4 w-4 text-[#8a9b85]" />
                       <p className="mt-2 text-2xl font-semibold italic text-[#2f3d2c]">{p.nick || "-"}</p>
                       {p.full && p.full !== p.nick && (
                         <p className="mt-0.5 text-sm text-[#3d4a3a]/65">{p.full}</p>
                       )}
+                      {p.childOrder && (
+                        <p className="mt-2 text-xs text-[#3d4a3a]/55">Anak ke-{p.childOrder}</p>
+                      )}
                       {p.parents && (
-                        <p className="mt-2 text-xs text-[#3d4a3a]/55">{p.label} {p.parents}</p>
+                        <p className="mt-1 text-xs text-[#3d4a3a]/55">{p.label} {p.parents}</p>
+                      )}
+                      {instagramHref(p.instagram) && (
+                        <a
+                          href={instagramHref(p.instagram)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 inline-flex items-center gap-1 text-xs text-[#3d4a3a]/55 underline underline-offset-2"
+                        >
+                          {instagramHandle(p.instagram) || "Instagram"}
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
                       )}
                     </div>
                   )

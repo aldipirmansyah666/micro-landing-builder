@@ -2,21 +2,54 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { UserButton } from "@clerk/nextjs";
-import { ArrowLeft, Crown, ExternalLink, ShieldCheck } from "lucide-react";
-import { getAllLandingPages, isAdmin } from "@/lib/db";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Crown,
+  ExternalLink,
+  ShieldCheck,
+} from "lucide-react";
+import {
+  getAllLandingPages,
+  getLandingPageAdminStats,
+  isAdmin,
+} from "@/lib/db";
 import { ToggleProButton } from "./ToggleProButton";
 
 // Halaman privat admin (auth + query Neon per-request): boleh blocking,
 // opt-out dari validasi instant navigation (Next.js 16 + cacheComponents).
 export const instant = false;
 
-export default async function AdminPage() {
+const PAGE_SIZE = 25;
+
+function pageHref(page: number): string {
+  return page <= 1 ? "/admin" : `/admin?page=${page}`;
+}
+
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string | string[] }>;
+}) {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
   if (!(await isAdmin(userId))) redirect("/dashboard");
 
-  const pages = await getAllLandingPages();
-  const proCount = pages.filter((p) => p.is_pro).length;
+  const params = await searchParams;
+  const rawPage = Array.isArray(params.page) ? params.page[0] : params.page;
+  const requestedPage = Number.parseInt(rawPage ?? "1", 10);
+  const stats = await getLandingPageAdminStats();
+  const totalPages = Math.max(1, Math.ceil(stats.total / PAGE_SIZE));
+  const page = Number.isFinite(requestedPage)
+    ? Math.min(Math.max(requestedPage, 1), totalPages)
+    : 1;
+  const pages = await getAllLandingPages(
+    PAGE_SIZE,
+    (page - 1) * PAGE_SIZE
+  );
+  const rangeStart = stats.total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(page * PAGE_SIZE, stats.total);
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 font-sans text-zinc-900 dark:bg-black dark:text-zinc-50">
@@ -46,7 +79,10 @@ export default async function AdminPage() {
               Semua Landing Page
             </h2>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              {pages.length} halaman · {proCount} PRO
+              {stats.total} halaman · {stats.pro} PRO
+              {stats.total > 0
+                ? ` · Menampilkan ${rangeStart}–${rangeEnd}`
+                : ""}
             </p>
           </div>
         </div>
@@ -111,6 +147,45 @@ export default async function AdminPage() {
             </table>
           </div>
         )}
+
+        {totalPages > 1 ? (
+          <nav
+            className="mt-4 flex items-center justify-between gap-3"
+            aria-label="Navigasi halaman admin"
+          >
+            {page > 1 ? (
+              <Link
+                href={pageHref(page - 1)}
+                className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-sm transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-900"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Sebelumnya
+              </Link>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full border border-zinc-200 px-3 py-1.5 text-sm text-zinc-400 dark:border-zinc-800 dark:text-zinc-600">
+                <ChevronLeft className="h-4 w-4" />
+                Sebelumnya
+              </span>
+            )}
+            <span className="text-sm text-zinc-600 dark:text-zinc-400">
+              Halaman {page} dari {totalPages}
+            </span>
+            {page < totalPages ? (
+              <Link
+                href={pageHref(page + 1)}
+                className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-sm transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-900"
+              >
+                Berikutnya
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full border border-zinc-200 px-3 py-1.5 text-sm text-zinc-400 dark:border-zinc-800 dark:text-zinc-600">
+                Berikutnya
+                <ChevronRight className="h-4 w-4" />
+              </span>
+            )}
+          </nav>
+        ) : null}
       </main>
     </div>
   );

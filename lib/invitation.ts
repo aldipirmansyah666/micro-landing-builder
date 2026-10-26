@@ -509,6 +509,23 @@ export function instagramHref(value: unknown): string {
   return handle ? `https://instagram.com/${handle}` : "";
 }
 
+/**
+ * Label handle Instagram untuk ditampilkan di undangan. Nilai URL non-Instagram
+ * tetap bisa dibuka, tetapi labelnya generik agar tidak menyesatkan tamu.
+ */
+export function instagramHandle(value: unknown): string {
+  const href = instagramHref(value);
+  if (!href) return "";
+  try {
+    const url = new URL(href);
+    if (!/(^|\.)instagram\.com$/i.test(url.hostname)) return "Instagram";
+    const segment = url.pathname.split("/").filter(Boolean)[0];
+    return segment ? `@${decodeURIComponent(segment)}` : "Instagram";
+  } catch {
+    return "Instagram";
+  }
+}
+
 /** YouTube / URL musik yang aman untuk dibuka di tab baru. */
 export function safeExternalUrl(value: unknown): string {
   return safeHttpUrl(value);

@@ -1,16 +1,32 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import {
-  extensionForMimeType,
   isSupabaseStorageConfigured,
   uploadToSupabaseStorage,
   UPLOADS_BUCKET,
 } from "@/lib/supabase";
+import { consumeRateLimit } from "@/lib/rate-limit";
+import { detectUploadType, isMimeCompatible } from "@/lib/upload-validation";
 
 export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const rate = await consumeRateLimit({
+    key: `upload:${userId}`,
+    limit: 30,
+    windowSeconds: 10 * 60,
+  });
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: "Terlalu banyak unggahan. Coba lagi beberapa menit lagi." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rate.retryAfterSeconds) },
+      }
+    );
   }
 
   let form: FormData;
@@ -30,36 +46,36 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-  const isImage = file.type.startsWith("image/");
-  const isAudio = file.type.startsWith("audio/");
-  const isVideo = file.type.startsWith("video/");
-  if (!isImage && !isAudio && !isVideo) {
+  if (file.size === 0) {
     return NextResponse.json(
-      { error: "Hanya file gambar, audio, atau video yang diizinkan" },
-      { status: 400 }
-    );
-  }
-  const maxSize = isAudio
-    ? 10 * 1024 * 1024
-    : isVideo
-      ? 50 * 1024 * 1024
-      : 5 * 1024 * 1024;
-  if (file.size === 0 || file.size > maxSize) {
-    return NextResponse.json(
-      {
-        error: `Ukuran file maks ${isAudio ? "10MB" : isVideo ? "50MB" : "5MB"}`,
-      },
+      { error: "File kosong" },
       { status: 413 }
     );
   }
-  // Tolak SVG (bisa berisi script) walau lolos prefix image/.
   if (file.type === "image/svg+xml") {
     return NextResponse.json({ error: "SVG tidak diizinkan" }, { status: 400 });
   }
-  if (!extensionForMimeType(file.type)) {
+
+  const header = Buffer.from(await file.slice(0, 64).arrayBuffer());
+  const detected = detectUploadType(header);
+  if (!detected) {
     return NextResponse.json(
-      { error: `Tipe file tidak didukung: ${file.type}` },
-      { status: 400 }
+      { error: "Isi file tidak dikenali sebagai gambar, audio, atau video" },
+      { status: 415 }
+    );
+  }
+  if (!isMimeCompatible(file.type, detected)) {
+    return NextResponse.json(
+      { error: "Tipe file tidak sesuai dengan isi file" },
+      { status: 415 }
+    );
+  }
+  if (file.size > detected.maxBytes) {
+    return NextResponse.json(
+      {
+        error: `Ukuran file maks ${Math.round(detected.maxBytes / 1024 / 1024)}MB`,
+      },
+      { status: 413 }
     );
   }
 
@@ -74,7 +90,7 @@ export async function POST(req: Request) {
     if (isSupabaseStorageConfigured()) {
       const result = await uploadToSupabaseStorage({
         buffer,
-        contentType: file.type,
+        contentType: detected.mime,
         folder: userId,
       });
       return NextResponse.json({ ok: true, ...result }, { status: 201 });
@@ -86,13 +102,12 @@ export async function POST(req: Request) {
     // (JANGAN dipakai di production — filesystem Vercel ephemeral dan
     // tidak dibagikan antar instance; di production wajib Supabase.)
     if (process.env.NODE_ENV === "development") {
-      const ext = extensionForMimeType(file.type) ?? "bin";
       const { mkdir, writeFile } = await import("node:fs/promises");
       const { join } = await import("node:path");
       const { randomUUID } = await import("node:crypto");
       const dir = join(process.cwd(), "public", "uploads");
       await mkdir(dir, { recursive: true });
-      const filename = `${randomUUID()}.${ext}`;
+      const filename = `${randomUUID()}.${detected.ext}`;
       await writeFile(join(dir, filename), buffer);
       const publicUrl = `${new URL(req.url).origin}/uploads/${filename}`;
       return NextResponse.json(
@@ -100,7 +115,7 @@ export async function POST(req: Request) {
           ok: true,
           key: `uploads/${filename}`,
           url: publicUrl,
-          contentType: file.type,
+          contentType: detected.mime,
           size: buffer.length,
         },
         { status: 201 }

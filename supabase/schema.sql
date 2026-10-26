@@ -85,6 +85,16 @@ CREATE INDEX IF NOT EXISTS idx_guests_page_slug ON guests (page_slug);
 -- Percepat beacon opened (WHERE page_slug + LOWER(name)):
 CREATE INDEX IF NOT EXISTS idx_guests_slug_lower_name ON guests (page_slug, lower(name));
 
+-- ============ RATE LIMITS (persisten lintas instance) ============
+CREATE TABLE IF NOT EXISTS rate_limits (
+  rate_key     VARCHAR(64) PRIMARY KEY,
+  hit_count    INTEGER NOT NULL,
+  window_start TIMESTAMPTZ NOT NULL,
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_limits_updated_at ON rate_limits (updated_at);
+
 -- ============ STORAGE (bucket publik `uploads`) ============
 -- Bucket untuk foto cover/galeri + audio backsound dari app/api/upload.
 INSERT INTO storage.buckets (id, name, public)

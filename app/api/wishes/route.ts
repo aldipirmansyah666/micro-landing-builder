@@ -5,33 +5,11 @@ import {
   getWishesBySlug,
   isUniqueViolation,
 } from "@/lib/db";
+import { consumeRateLimit } from "@/lib/rate-limit";
 
 const ATTENDANCE = new Set(["Hadir", "Tidak Hadir", "Masih Ragu"]);
-
-// Rate-limit sederhana per IP+slug: maks 5 ucapan per 10 menit.
-// Best-effort in-memory (reset saat instance restart / multi-instance);
-// untuk skala besar ganti dengan store persisten (mis. Upstash Ratelimit).
-const WISH_WINDOW_MS = 10 * 60 * 1000;
+const WISH_WINDOW_SECONDS = 10 * 60;
 const WISH_MAX_PER_WINDOW = 5;
-const wishHits = new Map<string, number[]>();
-
-function wishRateLimitOk(key: string): boolean {
-  const now = Date.now();
-  const recent = (wishHits.get(key) ?? []).filter((t) => now - t < WISH_WINDOW_MS);
-  if (recent.length >= WISH_MAX_PER_WINDOW) {
-    wishHits.set(key, recent);
-    return false;
-  }
-  recent.push(now);
-  wishHits.set(key, recent);
-  // Bersihkan entri basi sesekali agar Map tidak tumbuh tanpa batas.
-  if (wishHits.size > 5000) {
-    for (const [k, v] of wishHits) {
-      if (v.length === 0 || now - v[v.length - 1]! >= WISH_WINDOW_MS) wishHits.delete(k);
-    }
-  }
-  return true;
-}
 
 /**
  * IP klien dari header yang diisi INFRASTRUKTUR, bukan oleh klien.
@@ -50,8 +28,9 @@ function wishRateLimitOk(key: string): boolean {
  *
  * Catatan: bila deployment tidak menyediakan salah satu header di atas,
  * IP tidak bisa ditentukan dengan trustworthy, sehingga rate limit di
- * sisi aplikasi tidak sepenuhnya andal. Untuk produksi, pindahkan ke
- * store persisten (mis. Upstash / Redis) dengan counter per-kunci.
+ * sisi aplikasi tidak sepenuhnya andal. Counter disimpan di tabel
+ * `rate_limits` (lib/rate-limit) agar konsisten lintas instance; IP hanya
+ * dipakai sebagai hash, bukan disimpan mentah.
  */
 function clientIp(req: Request): string {
   const cfConnectingIp = req.headers.get("cf-connecting-ip")?.trim();
@@ -64,8 +43,8 @@ function clientIp(req: Request): string {
 
 export async function GET(req: Request) {
   const slug = new URL(req.url).searchParams.get("slug")?.trim() ?? "";
-  if (!slug) {
-    return NextResponse.json({ error: "Parameter slug wajib diisi" }, { status: 400 });
+  if (!slug || slug.length > 60) {
+    return NextResponse.json({ error: "Parameter slug tidak valid" }, { status: 400 });
   }
   try {
     const wishes = await getWishesBySlug(slug);
@@ -97,8 +76,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true }, { status: 201 });
   }
 
-  if (!slug) {
-    return NextResponse.json({ error: "Slug wajib diisi" }, { status: 400 });
+  if (!slug || slug.length > 60) {
+    return NextResponse.json({ error: "Slug tidak valid" }, { status: 400 });
   }
   if (!name || name.length > 100) {
     return NextResponse.json(
@@ -110,6 +89,21 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { error: "Ucapan wajib diisi (maks 500 karakter)" },
       { status: 400 }
+    );
+  }
+
+  const rate = await consumeRateLimit({
+    key: `wishes:${clientIp(req)}:${slug}`,
+    limit: WISH_MAX_PER_WINDOW,
+    windowSeconds: WISH_WINDOW_SECONDS,
+  });
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: "Terlalu banyak ucapan. Coba lagi beberapa menit lagi." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rate.retryAfterSeconds) },
+      }
     );
   }
 
@@ -126,13 +120,6 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { error: "Gagal memverifikasi undangan" },
       { status: 500 }
-    );
-  }
-
-  if (!wishRateLimitOk(`${clientIp(req)}:${slug}`)) {
-    return NextResponse.json(
-      { error: "Terlalu banyak ucapan. Coba lagi beberapa menit lagi." },
-      { status: 429 }
     );
   }
 

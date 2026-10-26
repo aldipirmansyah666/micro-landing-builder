@@ -9,7 +9,13 @@ import {
   MapPin,
   MessageCircleHeart,
 } from "lucide-react";
-import { coupleNames, eventTimestamp, formatDateLong } from "@/lib/invitation";
+import {
+  coupleNames,
+  eventTimestamp,
+  formatDateLong,
+  instagramHandle,
+  instagramHref,
+} from "@/lib/invitation";
 import {
   CopyRekeningButton,
   CoverOverlay,
@@ -103,17 +109,31 @@ export function MinimalistTemplate({ title, content, guestName, rsvpSlot, defaul
         <Reveal>
         <div className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-zinc-200 shadow-sm dark:bg-zinc-800">
           {[
-            { nick: content.groomNickname || content.groomFullName, full: content.groomFullName, parents: content.groomParents },
-            { nick: content.brideNickname || content.brideFullName, full: content.brideFullName, parents: content.brideParents },
+            { nick: content.groomNickname || content.groomFullName, full: content.groomFullName, parents: content.groomParents, childOrder: content.groomChildOrder, instagram: content.groomInstagram },
+            { nick: content.brideNickname || content.brideFullName, full: content.brideFullName, parents: content.brideParents, childOrder: content.brideChildOrder, instagram: content.brideInstagram },
           ].map(
             (p, i) =>
-              (p.nick || p.parents) && (
+              (p.nick || p.parents || p.childOrder || instagramHref(p.instagram)) && (
                 <div key={i} className="bg-white px-4 py-6 dark:bg-black">
                   <p className="text-lg font-semibold tracking-tight">{p.nick || "-"}</p>
                   {p.full && p.full !== p.nick && (
                     <p className="mt-0.5 text-xs text-zinc-500">{p.full}</p>
                   )}
-                  {p.parents && <p className="mt-2 text-xs text-zinc-500">{p.parents}</p>}
+                  {p.childOrder && (
+                    <p className="mt-2 text-xs text-zinc-500">Anak ke-{p.childOrder}</p>
+                  )}
+                  {p.parents && <p className="mt-1 text-xs text-zinc-500">{p.parents}</p>}
+                  {instagramHref(p.instagram) && (
+                    <a
+                      href={instagramHref(p.instagram)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-flex items-center gap-1 text-xs text-zinc-500 underline underline-offset-2"
+                    >
+                      {instagramHandle(p.instagram) || "Instagram"}
+                      <ArrowUpRight className="h-3 w-3" />
+                    </a>
+                  )}
                 </div>
               )
           )}
