@@ -7,7 +7,7 @@
     "dev": "next dev",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "check:palette": "node scripts/check-palette-coverage.mjs",
     "check:parity": "node scripts/check-template-parity.mjs",
     "check:upload": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/check-upload-validation.mjs",
