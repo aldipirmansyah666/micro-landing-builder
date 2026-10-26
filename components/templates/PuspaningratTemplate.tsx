@@ -166,7 +166,7 @@ export function PuspaningratTemplate({ title, content, guestName, rsvpSlot, defa
               </p>
               <div aria-hidden className="mx-auto mt-3 h-px w-16 bg-[#b08d3e]/60" />
               <p className="mt-3 text-lg text-[#3a2c1c]">{formatDateLong(e.date)}</p>
-              {e.time && <p className="mt-1 font-sans text-sm">Pukul {e.time} WIB</p>}
+              {e.time && <p className="mt-1 font-sans text-sm">Pukul {e.time} {e.timezone}</p>}
               {e.venue && (
                 <p className="mt-2 flex items-start justify-center gap-1.5 font-sans text-sm text-[#5c4a33]">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#8a5a2b]" />

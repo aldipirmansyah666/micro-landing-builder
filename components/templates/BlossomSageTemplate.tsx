@@ -156,7 +156,7 @@ export function BlossomSageTemplate({ title, content, guestName, rsvpSlot, defau
             <div className="mt-4 rounded-[2.5rem] bg-white px-6 py-8 text-center shadow-sm">
               <p className="font-sans text-[11px] tracking-[0.35em] text-[#c98a94] uppercase">{e.name}</p>
               <p className="mt-3 font-serif text-2xl text-[#3f4a41] italic">{formatDateLong(e.date)}</p>
-              {e.time && <p className="mt-1 font-sans text-sm text-[#6a7a6c]">Pukul {e.time} WIB</p>}
+              {e.time && <p className="mt-1 font-sans text-sm text-[#6a7a6c]">Pukul {e.time} {e.timezone}</p>}
               {e.venue && (
                 <p className="mt-3 flex items-start justify-center gap-1.5 font-sans text-sm text-[#6a7a6c]">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#c98a94]" />

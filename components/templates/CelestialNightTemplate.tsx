@@ -166,7 +166,7 @@ export function CelestialNightTemplate({ title, content, guestName, rsvpSlot, de
             <div className="mt-8 rounded-3xl border border-[#d4af37]/30 bg-gradient-to-b from-white/[0.07] to-transparent px-6 py-7 text-center">
               <p className="font-sans text-[11px] tracking-[0.35em] text-[#d4af37] uppercase">{e.name}</p>
               <p className="mt-3 text-xl text-[#f7ecc8]">{formatDateLong(e.date)}</p>
-              {e.time && <p className="mt-1 font-sans text-sm text-[#b9b09a]">Pukul {e.time} WIB</p>}
+              {e.time && <p className="mt-1 font-sans text-sm text-[#b9b09a]">Pukul {e.time} {e.timezone}</p>}
               {e.venue && (
                 <p className="mt-3 flex items-start justify-center gap-1.5 font-sans text-sm text-[#c9c2ab]">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#d4af37]" />

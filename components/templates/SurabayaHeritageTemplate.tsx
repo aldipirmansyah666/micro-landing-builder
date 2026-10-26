@@ -154,7 +154,7 @@ export function SurabayaHeritageTemplate({ title, content, guestName, rsvpSlot, 
               <div className="border border-[#c9a227] px-6 py-7 text-center">
                 <p className="font-sans text-[11px] tracking-[0.35em] text-[#8a7a2e] uppercase">{e.name}</p>
                 <p className="mt-3 text-xl">{formatDateLong(e.date)}</p>
-                {e.time && <p className="mt-1 font-sans text-sm text-[#3d4a6a]">Pukul {e.time} WIB</p>}
+                {e.time && <p className="mt-1 font-sans text-sm text-[#3d4a6a]">Pukul {e.time} {e.timezone}</p>}
                 {e.venue && (
                   <p className="mt-3 flex items-start justify-center gap-1.5 font-sans text-sm text-[#3d4a6a]">
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#8a7a2e]" />

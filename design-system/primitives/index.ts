@@ -2,6 +2,8 @@ export { Button, buttonClass } from "./Button";
 export type { ButtonProps, ButtonSize, ButtonVariant } from "./Button";
 export { Input, Textarea, inputBaseClass } from "./Input";
 export type { InputProps, InputSize, TextareaProps } from "./Input";
+export { Select } from "./Select";
+export type { SelectProps } from "./Select";
 export { Field, fieldLabelClass } from "./Field";
 export type { FieldProps } from "./Field";
 export { Accordion } from "./Accordion";

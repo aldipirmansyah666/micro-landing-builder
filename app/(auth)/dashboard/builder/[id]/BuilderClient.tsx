@@ -28,6 +28,7 @@ import {
   RotateCcw,
   Save,
   Trash2,
+  Video,
   X,
 } from "lucide-react";
 import type { LandingPage } from "@/lib/db";
@@ -38,11 +39,15 @@ import {
   type Plan,
 } from "@/lib/entitlements";
 import {
+  COUPLE_ORDER_OPTIONS,
   MAX_CLOSING_NOTE_LEN,
+  MAX_GALLERY_VIDEOS,
   MAX_GREETING_LEN,
   MAX_STORIES,
   MAX_STORY_TEXT_LEN,
   MAX_STORY_TITLE_LEN,
+  TIMEZONE_OPTIONS,
+  dayNameFromDate,
   resolveTemplate,
   safeHttpUrl,
   slugify,
@@ -68,6 +73,7 @@ import {
   Dialog,
   Field,
   Input,
+  Select,
   Textarea,
   fieldLabelClass,
 } from "@/design-system/primitives";
@@ -343,6 +349,158 @@ function BacksoundPicker({
   );
 }
 
+function ProfileFields({
+  side,
+  title,
+  content,
+  onChange,
+  onUploadPhoto,
+  onRemovePhoto,
+  uploading,
+}: {
+  side: "groom" | "bride";
+  title: string;
+  content: InvitationContent;
+  onChange: (patch: Partial<InvitationContent>) => void;
+  onUploadPhoto: (file: File) => void;
+  onRemovePhoto: () => void;
+  uploading: boolean;
+}) {
+  const isGroom = side === "groom";
+  const fullName = isGroom ? content.groomFullName : content.brideFullName;
+  const nickname = isGroom ? content.groomNickname : content.brideNickname;
+  const parents = isGroom ? content.groomParents : content.brideParents;
+  const childOrder = isGroom
+    ? content.groomChildOrder
+    : content.brideChildOrder;
+  const instagram = isGroom ? content.groomInstagram : content.brideInstagram;
+  const photo = isGroom ? content.groomPhoto : content.bridePhoto;
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+      <p className="text-sm font-semibold">{title}</p>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (fileRef.current) fileRef.current.value = "";
+          if (file) onUploadPhoto(file);
+        }}
+      />
+      <div className="flex items-center gap-3">
+        <SafeImg
+          key={photo}
+          src={safeHttpUrl(photo)}
+          alt={fullName || title}
+          fallbackLabel="Foto"
+          className="h-16 w-16 shrink-0 rounded-full object-cover"
+        />
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-zinc-200 px-3.5 text-xs font-medium transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          >
+            {uploading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <ImagePlus className="h-3.5 w-3.5" />
+            )}
+            {photo ? "Ganti Foto" : "Upload Foto"}
+          </button>
+          {photo && (
+            <button
+              type="button"
+              onClick={onRemovePhoto}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-red-200 px-3.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Hapus
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Nama Lengkap">
+          <Input
+            value={fullName}
+            onChange={(e) =>
+              onChange(
+                isGroom
+                  ? { groomFullName: e.target.value }
+                  : { brideFullName: e.target.value }
+              )
+            }
+            placeholder={isGroom ? "Andi Pratama" : "Sinta Dewi"}
+          />
+        </Field>
+        <Field label="Nama Panggilan">
+          <Input
+            value={nickname}
+            onChange={(e) =>
+              onChange(
+                isGroom
+                  ? { groomNickname: e.target.value }
+                  : { brideNickname: e.target.value }
+              )
+            }
+            placeholder={isGroom ? "Andi" : "Sinta"}
+          />
+        </Field>
+      </div>
+      <Field label="Nama Orang Tua">
+        <Input
+          value={parents}
+          onChange={(e) =>
+            onChange(
+              isGroom
+                ? { groomParents: e.target.value }
+                : { brideParents: e.target.value }
+            )
+          }
+          placeholder={
+            isGroom ? "Bpk. Harto & Ibu Wulan" : "Bpk. Joko & Ibu Ratna"
+          }
+        />
+      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Anak ke-">
+          <Input
+            value={childOrder}
+            onChange={(e) =>
+              onChange(
+                isGroom
+                  ? { groomChildOrder: e.target.value }
+                  : { brideChildOrder: e.target.value }
+              )
+            }
+            placeholder="cth: 2"
+            inputMode="numeric"
+          />
+        </Field>
+        <Field label="Instagram">
+          <Input
+            value={instagram}
+            onChange={(e) =>
+              onChange(
+                isGroom
+                  ? { groomInstagram: e.target.value }
+                  : { brideInstagram: e.target.value }
+              )
+            }
+            placeholder="@username"
+          />
+        </Field>
+      </div>
+    </div>
+  );
+}
+
 function EventFields({
   prefix,
   title,
@@ -354,17 +512,33 @@ function EventFields({
   content: InvitationContent;
   onChange: (patch: Partial<InvitationContent>) => void;
 }) {
+  const isAkad = prefix === "akad";
+  const date = isAkad ? content.akadDate : content.receptionDate;
+  const time = isAkad ? content.akadTime : content.receptionTime;
+  const timezone = isAkad
+    ? content.akadTimezone
+    : content.receptionTimezone;
+  const venue = isAkad ? content.akadVenue : content.receptionVenue;
+  const maps = isAkad ? content.akadMapsUrl : content.receptionMapsUrl;
+  const dresscode = isAkad
+    ? content.akadDresscode
+    : content.receptionDresscode;
+  const day = dayNameFromDate(date);
+
   return (
-    <div className="space-y-4">
-      <p className="text-sm font-medium">{title}</p>
-      <div className="grid gap-4 sm:grid-cols-2">
+    <div className="space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+      <p className="text-sm font-semibold">{title}</p>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Field label="Hari">
+          <Input value={day} readOnly placeholder="Otomatis dari tanggal" />
+        </Field>
         <Field label="Tanggal">
           <Input
             type="date"
-            value={prefix === "akad" ? content.akadDate : content.receptionDate}
+            value={date}
             onChange={(e) =>
               onChange(
-                prefix === "akad"
+                isAkad
                   ? { akadDate: e.target.value }
                   : { receptionDate: e.target.value }
               )
@@ -374,10 +548,10 @@ function EventFields({
         <Field label="Jam">
           <Input
             type="time"
-            value={prefix === "akad" ? content.akadTime : content.receptionTime}
+            value={time}
             onChange={(e) =>
               onChange(
-                prefix === "akad"
+                isAkad
                   ? { akadTime: e.target.value }
                   : { receptionTime: e.target.value }
               )
@@ -385,25 +559,66 @@ function EventFields({
           />
         </Field>
       </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Zona Waktu">
+          <Select
+            value={timezone}
+            onChange={(e) =>
+              onChange(
+                isAkad
+                  ? {
+                      akadTimezone: e.target
+                        .value as InvitationContent["akadTimezone"],
+                    }
+                  : {
+                      receptionTimezone: e.target
+                        .value as InvitationContent["receptionTimezone"],
+                    }
+              )
+            }
+          >
+            {TIMEZONE_OPTIONS.map((tz) => (
+              <option key={tz} value={tz}>
+                {tz}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Dresscode">
+          <Input
+            value={dresscode}
+            onChange={(e) =>
+              onChange(
+                isAkad
+                  ? { akadDresscode: e.target.value }
+                  : { receptionDresscode: e.target.value }
+              )
+            }
+            placeholder="cth: Formal earthy tone"
+          />
+        </Field>
+      </div>
       <Field label="Alamat / Gedung">
-        <Input
-          value={prefix === "akad" ? content.akadVenue : content.receptionVenue}
+        <Textarea
+          value={venue}
           onChange={(e) =>
             onChange(
-              prefix === "akad"
+              isAkad
                 ? { akadVenue: e.target.value }
                 : { receptionVenue: e.target.value }
             )
           }
+          rows={2}
           placeholder="cth: Gedung Serbaguna, Jakarta"
+          className="resize-none"
         />
       </Field>
       <Field label="Link Google Maps">
         <Input
-          value={prefix === "akad" ? content.akadMapsUrl : content.receptionMapsUrl}
+          value={maps}
           onChange={(e) =>
             onChange(
-              prefix === "akad"
+              isAkad
                 ? { akadMapsUrl: e.target.value }
                 : { receptionMapsUrl: e.target.value }
             )
@@ -597,6 +812,7 @@ export function BuilderClient({
 
   const coverRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
+  const galleryVideoRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLInputElement>(null);
 
   function patch(p: Partial<InvitationContent>) {
@@ -916,7 +1132,7 @@ export function BuilderClient({
           </Accordion>
 
           {isPro ? (
-          <Accordion title="💌 Cerita & Sapaan">
+          <Accordion title="💞 Love Story & Sapaan">
             <Field label={`Sapaan Pembuka (${(content.greeting ?? "").length}/${MAX_GREETING_LEN})`}>
               <Textarea
                 value={content.greeting ?? ""}
@@ -948,7 +1164,7 @@ export function BuilderClient({
             </Field>
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium">
-                Cerita Pasangan ({stories.length}/{MAX_STORIES})
+                Love Story ({stories.length}/{MAX_STORIES})
               </p>
               <button
                 type="button"
@@ -962,11 +1178,11 @@ export function BuilderClient({
                 className="inline-flex h-9 items-center gap-1.5 rounded-full border border-zinc-200 px-4 text-xs font-medium transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Tambah Cerita
+                Tambah Love Story
               </button>
             </div>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Tampil sebagai timeline pada template PRO. Cerita kosong tidak
+              Tampil sebagai timeline pada template PRO. Love Story kosong tidak
               ditampilkan.
             </p>
             {stories.map((s, i) => (
@@ -975,13 +1191,13 @@ export function BuilderClient({
                 className="space-y-3 rounded-xl bg-zinc-50 p-3 dark:bg-zinc-900"
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-medium">Cerita {i + 1}</p>
+                  <p className="text-xs font-medium">Love Story {i + 1}</p>
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
                       disabled={i === 0}
                       onClick={() => moveStory(i, -1)}
-                      aria-label={`Pindah cerita ${i + 1} ke atas`}
+                      aria-label={`Pindah love story ${i + 1} ke atas`}
                       className="inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-zinc-200 disabled:opacity-40 dark:hover:bg-zinc-800"
                     >
                       <ArrowUp className="h-3.5 w-3.5" />
@@ -998,7 +1214,7 @@ export function BuilderClient({
                     <button
                       type="button"
                       onClick={() => removeStory(i)}
-                      aria-label={`Hapus cerita ${i + 1}`}
+                      aria-label={`Hapus love story ${i + 1}`}
                       className="inline-flex h-7 w-7 items-center justify-center rounded-full text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -1013,7 +1229,7 @@ export function BuilderClient({
                     placeholder="cth: Awal Bertemu — 2019"
                   />
                 </Field>
-                <Field label={`Isi Cerita (${s.text.length}/${MAX_STORY_TEXT_LEN})`}>
+                <Field label={`Isi Love Story (${s.text.length}/${MAX_STORY_TEXT_LEN})`}>
                   <Textarea
                     value={s.text}
                     onChange={(e) => updateStory(i, { text: e.target.value.slice(0, MAX_STORY_TEXT_LEN) })}
@@ -1030,7 +1246,7 @@ export function BuilderClient({
           <div className="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/30">
             <div className="flex items-center justify-between gap-2 px-4 py-3.5">
               <p className="text-sm font-semibold tracking-tight">
-                💌 Cerita & Sapaan
+                💞 Love Story & Sapaan
               </p>
               <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-400 px-2.5 py-1 text-[10px] font-bold text-amber-950">
                 <Lock className="h-3 w-3" />
@@ -1040,7 +1256,7 @@ export function BuilderClient({
             <div className="space-y-3 px-4 pb-4">
               <p className="text-xs leading-6 text-amber-900 dark:text-amber-200">
                 Fitur khusus pengguna PRO — Upgrade seharga Rp 49.000 untuk
-                mengaktifkan Sapaan Kustom & Timeline Cerita Pasangan.
+                mengaktifkan Sapaan Kustom & Timeline Love Story.
               </p>
               {savedSlug ? (
                 <UpgradeProButton slug={savedSlug} />
@@ -1053,55 +1269,101 @@ export function BuilderClient({
           </div>
           )}
 
-          <Accordion title="💍 Profil Mempelai Pria & Wanita">
-            <p className="text-sm font-medium">Mempelai Pria</p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Nama Lengkap">
-                <Input
-                  value={content.groomFullName}
-                  onChange={(e) => patch({ groomFullName: e.target.value })}
-                  placeholder="Andi Pratama"
-                />
-              </Field>
-              <Field label="Nama Panggilan">
-                <Input
-                  value={content.groomNickname}
-                  onChange={(e) => patch({ groomNickname: e.target.value })}
-                  placeholder="Andi"
-                />
-              </Field>
+          <Accordion title="💍 Profil Mempelai Pria & Wanita" defaultOpen>
+            <div>
+              <span className={fieldLabelClass}>Urutan Mempelai</span>
+              <div className="grid grid-cols-2 gap-2">
+                {COUPLE_ORDER_OPTIONS.map((option) => {
+                  const active = content.coupleOrder === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => patch({ coupleOrder: option.value })}
+                      className={`inline-flex h-10 items-center justify-center rounded-xl border text-sm font-medium transition-colors ${
+                        active
+                          ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+                          : "border-zinc-200 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <Field label="Nama Orang Tua (Pria)">
-              <Input
-                value={content.groomParents}
-                onChange={(e) => patch({ groomParents: e.target.value })}
-                placeholder="Bpk. Harto & Ibu Wulan"
-              />
-            </Field>
-            <p className="pt-2 text-sm font-medium">Mempelai Wanita</p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Nama Lengkap">
-                <Input
-                  value={content.brideFullName}
-                  onChange={(e) => patch({ brideFullName: e.target.value })}
-                  placeholder="Sinta Dewi"
+            {content.coupleOrder === "groomFirst" ? (
+              <>
+                <ProfileFields
+                  side="groom"
+                  title="Mempelai Laki-Laki"
+                  content={content}
+                  onChange={patch}
+                  uploading={uploading === "groomPhoto"}
+                  onUploadPhoto={(file) =>
+                    void runUpload("groomPhoto", async () => {
+                      const r = await uploadFile(file);
+                      patch({ groomPhoto: r.url });
+                      if (r.warning)
+                        setMessage({ type: "error", text: r.warning });
+                    })
+                  }
+                  onRemovePhoto={() => patch({ groomPhoto: "" })}
                 />
-              </Field>
-              <Field label="Nama Panggilan">
-                <Input
-                  value={content.brideNickname}
-                  onChange={(e) => patch({ brideNickname: e.target.value })}
-                  placeholder="Sinta"
+                <ProfileFields
+                  side="bride"
+                  title="Mempelai Wanita"
+                  content={content}
+                  onChange={patch}
+                  uploading={uploading === "bridePhoto"}
+                  onUploadPhoto={(file) =>
+                    void runUpload("bridePhoto", async () => {
+                      const r = await uploadFile(file);
+                      patch({ bridePhoto: r.url });
+                      if (r.warning)
+                        setMessage({ type: "error", text: r.warning });
+                    })
+                  }
+                  onRemovePhoto={() => patch({ bridePhoto: "" })}
                 />
-              </Field>
-            </div>
-            <Field label="Nama Orang Tua (Wanita)">
-              <Input
-                value={content.brideParents}
-                onChange={(e) => patch({ brideParents: e.target.value })}
-                placeholder="Bpk. Joko & Ibu Ratna"
-              />
-            </Field>
+              </>
+            ) : (
+              <>
+                <ProfileFields
+                  side="bride"
+                  title="Mempelai Wanita"
+                  content={content}
+                  onChange={patch}
+                  uploading={uploading === "bridePhoto"}
+                  onUploadPhoto={(file) =>
+                    void runUpload("bridePhoto", async () => {
+                      const r = await uploadFile(file);
+                      patch({ bridePhoto: r.url });
+                      if (r.warning)
+                        setMessage({ type: "error", text: r.warning });
+                    })
+                  }
+                  onRemovePhoto={() => patch({ bridePhoto: "" })}
+                />
+                <ProfileFields
+                  side="groom"
+                  title="Mempelai Laki-Laki"
+                  content={content}
+                  onChange={patch}
+                  uploading={uploading === "groomPhoto"}
+                  onUploadPhoto={(file) =>
+                    void runUpload("groomPhoto", async () => {
+                      const r = await uploadFile(file);
+                      patch({ groomPhoto: r.url });
+                      if (r.warning)
+                        setMessage({ type: "error", text: r.warning });
+                    })
+                  }
+                  onRemovePhoto={() => patch({ groomPhoto: "" })}
+                />
+              </>
+            )}
           </Accordion>
 
           <Accordion title="📅 Detail Akad & Resepsi">
@@ -1118,8 +1380,10 @@ export function BuilderClient({
                 patch({
                   receptionDate: content.akadDate,
                   receptionTime: content.akadTime,
+                  receptionTimezone: content.akadTimezone,
                   receptionVenue: content.akadVenue,
                   receptionMapsUrl: content.akadMapsUrl,
+                  receptionDresscode: content.akadDresscode,
                 })
               }
               className="text-xs font-medium text-zinc-600 underline underline-offset-2 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
@@ -1298,7 +1562,100 @@ export function BuilderClient({
                 </div>
               )}
             </Field>
-            <p className="pt-2 text-sm font-medium">Amplop Digital / Rekening</p>
+            <Field
+              label={`Galeri Video (${content.galleryVideos.length}/${MAX_GALLERY_VIDEOS})`}
+            >
+              <input
+                ref={galleryVideoRef}
+                type="file"
+                accept="video/mp4,video/webm,video/quicktime"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const files = [...(e.target.files ?? [])];
+                  if (galleryVideoRef.current) galleryVideoRef.current.value = "";
+                  if (files.length > 0)
+                    void runUpload("galleryVideo", async () => {
+                      const room = Math.max(
+                        MAX_GALLERY_VIDEOS - content.galleryVideos.length,
+                        0
+                      );
+                      if (room <= 0) {
+                        throw new Error(
+                          `Galeri video penuh (maks ${MAX_GALLERY_VIDEOS} video)`
+                        );
+                      }
+                      const results = await Promise.all(
+                        files.slice(0, room).map(uploadFile)
+                      );
+                      const urls = results.map((r) => r.url);
+                      const warning = results.find((r) => r.warning)?.warning;
+                      setContent((c) => ({
+                        ...c,
+                        galleryVideos: [...c.galleryVideos, ...urls].slice(
+                          0,
+                          MAX_GALLERY_VIDEOS
+                        ),
+                      }));
+                      if (warning)
+                        setMessage({ type: "error", text: warning });
+                    });
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => galleryVideoRef.current?.click()}
+                disabled={uploading !== null}
+                className="inline-flex h-10 items-center gap-2 rounded-full border border-zinc-200 px-4 text-sm font-medium transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              >
+                {uploading === "galleryVideo" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Video className="h-4 w-4" />
+                )}
+                Tambah Video (maks {MAX_GALLERY_VIDEOS})
+              </button>
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                Format MP4/WebM/MOV, maks 50MB per video.
+              </p>
+              {content.galleryVideos.length > 0 && (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {content.galleryVideos.map((url) => (
+                    <div key={url} className="group relative">
+                      <video
+                        src={safeHttpUrl(url)}
+                        controls
+                        playsInline
+                        preload="metadata"
+                        className="aspect-video w-full rounded-xl bg-black object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setContent((c) => ({
+                            ...c,
+                            galleryVideos: c.galleryVideos.filter(
+                              (u) => u !== url
+                            ),
+                          }))
+                        }
+                        aria-label="Hapus video galeri"
+                        className="absolute top-1 right-1 hidden h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white group-hover:inline-flex"
+                      >
+                        <Minus className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Field>
+          </Accordion>
+
+          <Accordion title="🎁 Wedding Gift">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Tambahkan banyak rekening bank atau e-wallet. Tamu dapat menyalin
+              nomor dengan satu klik.
+            </p>
             {content.accounts.map((a, i) => (
               <div
                 key={i}
@@ -1320,19 +1677,33 @@ export function BuilderClient({
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <Field label="Bank">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Jenis">
+                    <Select
+                      value={a.kind ?? "bank"}
+                      onChange={(e) =>
+                        updateAccount(i, {
+                          kind:
+                            e.target.value === "ewallet" ? "ewallet" : "bank",
+                        })
+                      }
+                    >
+                      <option value="bank">Bank</option>
+                      <option value="ewallet">E-Wallet</option>
+                    </Select>
+                  </Field>
+                  <Field label={a.kind === "ewallet" ? "Nama E-Wallet" : "Nama Bank"}>
                     <Input
                       value={a.bank}
                       onChange={(e) => updateAccount(i, { bank: e.target.value })}
-                      placeholder="BCA"
+                      placeholder={a.kind === "ewallet" ? "GoPay" : "BCA"}
                     />
                   </Field>
-                  <Field label="No. Rekening">
+                  <Field label="No. Rekening / HP">
                     <Input
                       value={a.number}
                       onChange={(e) => updateAccount(i, { number: e.target.value })}
-                      placeholder="1234567890"
+                      placeholder={a.kind === "ewallet" ? "081234567890" : "1234567890"}
                       inputMode="numeric"
                     />
                   </Field>
@@ -1351,14 +1722,56 @@ export function BuilderClient({
               onClick={() =>
                 setContent((c) => ({
                   ...c,
-                  accounts: [...c.accounts, { bank: "", number: "", holder: "" }],
+                  accounts: [
+                    ...c.accounts,
+                    { bank: "", number: "", holder: "", kind: "bank" },
+                  ],
                 }))
               }
               className="inline-flex h-10 items-center gap-2 rounded-full border border-zinc-200 px-4 text-sm font-medium transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
             >
               <Plus className="h-4 w-4" />
-              Tambah Rekening
+              Tambah Rekening / E-Wallet
             </button>
+            <Field label="Alamat Kirim Kado Fisik">
+              <Textarea
+                value={content.giftAddress}
+                onChange={(e) => patch({ giftAddress: e.target.value })}
+                rows={3}
+                placeholder="Nama penerima, alamat lengkap, kota, kode pos"
+                className="resize-none"
+              />
+            </Field>
+          </Accordion>
+
+          <Accordion title="🔗 Link Live Stream, Filter & Musik">
+            <Field label="Link Live Streaming">
+              <Input
+                value={content.liveStreamUrl}
+                onChange={(e) => patch({ liveStreamUrl: e.target.value })}
+                placeholder="https://youtube.com/live/..."
+                inputMode="url"
+              />
+            </Field>
+            <Field label="Link IG Filter">
+              <Input
+                value={content.igFilterUrl}
+                onChange={(e) => patch({ igFilterUrl: e.target.value })}
+                placeholder="https://instagram.com/ar/..."
+                inputMode="url"
+              />
+            </Field>
+            <Field label="Request Musik (Link YouTube)">
+              <Input
+                value={content.musicRequestUrl}
+                onChange={(e) => patch({ musicRequestUrl: e.target.value })}
+                placeholder="https://youtube.com/playlist?list=..."
+                inputMode="url"
+              />
+            </Field>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Ketiga tautan opsional dan tampil sebagai tombol di undangan.
+            </p>
           </Accordion>
 
           <Accordion title="💌 Fitur Sebar Undangan (Nama Tamu)">

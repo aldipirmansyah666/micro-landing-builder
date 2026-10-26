@@ -146,7 +146,7 @@ export function RoyalBalineseTemplate({ title, content, guestName, rsvpSlot, def
               <div className="px-6 py-7 text-center">
                 <p className="font-sans text-[11px] tracking-[0.35em] text-[#c9973f] uppercase">{e.name}</p>
                 <p className="mt-3 text-xl text-[#f7ecc8]">{formatDateLong(e.date)}</p>
-                {e.time && <p className="mt-1 font-sans text-sm text-[#d9c493]">Pukul {e.time} WIB</p>}
+                {e.time && <p className="mt-1 font-sans text-sm text-[#d9c493]">Pukul {e.time} {e.timezone}</p>}
                 {e.venue && (
                   <p className="mt-3 flex items-start justify-center gap-1.5 font-sans text-sm text-[#d9c493]">
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#c9973f]" />

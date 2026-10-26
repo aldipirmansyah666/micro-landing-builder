@@ -1,7 +1,13 @@
+export type GiftAccountKind = "bank" | "ewallet";
+export type CoupleOrder = "brideFirst" | "groomFirst";
+export type WeddingTimezone = "WIB" | "WITA" | "WIT";
+
 export interface GiftAccount {
   bank: string;
   number: string;
   holder: string;
+  /** Jenis tujuan transfer. Data lama tanpa field ini dianggap bank. */
+  kind?: GiftAccountKind;
 }
 
 /** Satu entri cerita pasangan (timeline "Cerita & Sapaan"). */
@@ -16,6 +22,27 @@ export const MAX_CLOSING_NOTE_LEN = 1000;
 export const MAX_STORIES = 5;
 export const MAX_STORY_TITLE_LEN = 80;
 export const MAX_STORY_TEXT_LEN = 1000;
+export const MAX_GALLERY_VIDEOS = 6;
+
+export const COUPLE_ORDER_OPTIONS: {
+  value: CoupleOrder;
+  label: string;
+}[] = [
+  { value: "brideFirst", label: "Wanita Dulu" },
+  { value: "groomFirst", label: "Laki-Laki Dulu" },
+];
+
+export const TIMEZONE_OPTIONS: WeddingTimezone[] = ["WIB", "WITA", "WIT"];
+
+export function normalizeTimezone(value: unknown): WeddingTimezone {
+  return value === "WITA" || value === "WIT" ? value : "WIB";
+}
+
+export function normalizeCoupleOrder(value: unknown): CoupleOrder {
+  // Data undangan lama tidak punya field ini dan dirender pria-dulu.
+  // Nilai baru "brideFirst" dipertahankan; selain itu kembali ke urutan lama.
+  return value === "brideFirst" ? "brideFirst" : "groomFirst";
+}
 
 /**
  * Dokumen undangan kanonik — sumber kebenaran tunggal untuk isi satu
@@ -30,24 +57,40 @@ export const MAX_STORY_TEXT_LEN = 1000;
  */
 export type InvitationContent = {
   quote: string;
+  coupleOrder: CoupleOrder;
   groomFullName: string;
   groomNickname: string;
   groomParents: string;
+  groomChildOrder: string;
+  groomInstagram: string;
+  groomPhoto: string;
   brideFullName: string;
   brideNickname: string;
   brideParents: string;
+  brideChildOrder: string;
+  brideInstagram: string;
+  bridePhoto: string;
   akadDate: string;
   akadTime: string;
+  akadTimezone: WeddingTimezone;
   akadVenue: string;
   akadMapsUrl: string;
+  akadDresscode: string;
   receptionDate: string;
   receptionTime: string;
+  receptionTimezone: WeddingTimezone;
   receptionVenue: string;
   receptionMapsUrl: string;
+  receptionDresscode: string;
   heroImage: string;
   galleryImages: string[];
+  galleryVideos: string[];
   backsoundUrl: string;
   accounts: GiftAccount[];
+  giftAddress: string;
+  liveStreamUrl: string;
+  igFilterUrl: string;
+  musicRequestUrl: string;
   /**
    * Sapaan pembuka kustom. `undefined` = data lama → pakai salam bawaan
    * template; string kosong = pengguna sengaja menyembunyikan salam.
@@ -180,24 +223,40 @@ export function resolveTemplate(t: unknown): TemplateId {
 
 export const EMPTY_INVITATION: InvitationContent = {
   quote: "",
+  coupleOrder: "brideFirst",
   groomFullName: "",
   groomNickname: "",
   groomParents: "",
+  groomChildOrder: "",
+  groomInstagram: "",
+  groomPhoto: "",
   brideFullName: "",
   brideNickname: "",
   brideParents: "",
+  brideChildOrder: "",
+  brideInstagram: "",
+  bridePhoto: "",
   akadDate: "",
   akadTime: "",
+  akadTimezone: "WIB",
   akadVenue: "",
   akadMapsUrl: "",
+  akadDresscode: "",
   receptionDate: "",
   receptionTime: "",
+  receptionTimezone: "WIB",
   receptionVenue: "",
   receptionMapsUrl: "",
+  receptionDresscode: "",
   heroImage: "",
   galleryImages: [],
+  galleryVideos: [],
   backsoundUrl: "",
   accounts: [],
+  giftAddress: "",
+  liveStreamUrl: "",
+  igFilterUrl: "",
+  musicRequestUrl: "",
   greeting: undefined,
   closingNote: undefined,
   stories: undefined,
@@ -326,6 +385,7 @@ export function toInvitationContent(raw: unknown): InvitationContent {
   const gallery = Array.isArray(c.galleryImages)
     ? toUrlList(c.galleryImages)
     : toUrlList(c.galleryUrls);
+  const galleryVideos = toUrlList(c.galleryVideos);
   const accounts = Array.isArray(c.accounts)
     ? c.accounts
         .filter(
@@ -336,6 +396,7 @@ export function toInvitationContent(raw: unknown): InvitationContent {
           bank: str(a.bank),
           number: str(a.number),
           holder: str(a.holder),
+          kind: a.kind === "ewallet" ? ("ewallet" as const) : ("bank" as const),
         }))
         .filter((a) => a.bank || a.number || a.holder)
     : [];
@@ -347,27 +408,43 @@ export function toInvitationContent(raw: unknown): InvitationContent {
 
   return {
     quote: str(c.quote) || str(c.description),
+    coupleOrder: normalizeCoupleOrder(c.coupleOrder),
     groomFullName: str(c.groomFullName),
     groomNickname: str(c.groomNickname),
     groomParents: str(c.groomParents),
+    groomChildOrder: str(c.groomChildOrder),
+    groomInstagram: str(c.groomInstagram),
+    groomPhoto: safeHttpUrl(c.groomPhoto),
     brideFullName: str(c.brideFullName),
     brideNickname: str(c.brideNickname),
     brideParents: str(c.brideParents),
+    brideChildOrder: str(c.brideChildOrder),
+    brideInstagram: str(c.brideInstagram),
+    bridePhoto: safeHttpUrl(c.bridePhoto),
     akadDate: str(c.akadDate) || legacyDate,
     akadTime: str(c.akadTime),
+    akadTimezone: normalizeTimezone(c.akadTimezone),
     akadVenue: str(c.akadVenue) || legacyVenue,
     akadMapsUrl: safeHttpUrl(c.akadMapsUrl) || safeHttpUrl(legacyMaps),
+    akadDresscode: str(c.akadDresscode),
     receptionDate: str(c.receptionDate) || legacyDate,
     receptionTime: str(c.receptionTime),
+    receptionTimezone: normalizeTimezone(c.receptionTimezone),
     receptionVenue: str(c.receptionVenue) || legacyVenue,
     receptionMapsUrl: safeHttpUrl(c.receptionMapsUrl) || safeHttpUrl(legacyMaps),
+    receptionDresscode: str(c.receptionDresscode),
     heroImage:
       safeHttpUrl(c.heroImage) ||
       safeHttpUrl(c.coverImageUrl) ||
       safeHttpUrl(c.imageUrl),
     galleryImages: gallery,
+    galleryVideos,
     backsoundUrl: safeHttpUrl(c.backsoundUrl),
     accounts,
+    giftAddress: str(c.giftAddress),
+    liveStreamUrl: safeHttpUrl(c.liveStreamUrl),
+    igFilterUrl: safeHttpUrl(c.igFilterUrl),
+    musicRequestUrl: safeHttpUrl(c.musicRequestUrl),
     greeting: optStr(c.greeting),
     closingNote: optStr(c.closingNote),
     stories: toStories(c.stories),
@@ -389,7 +466,7 @@ export function resolveGreeting(
 export function coupleNames(content: InvitationContent): string {
   const g = content.groomNickname || content.groomFullName || "Mempelai Pria";
   const b = content.brideNickname || content.brideFullName || "Mempelai Wanita";
-  return `${g} & ${b}`;
+  return content.coupleOrder === "groomFirst" ? `${g} & ${b}` : `${b} & ${g}`;
 }
 
 const WIB_OFFSET = "+07:00";
@@ -408,6 +485,35 @@ export function formatDateLong(value: string): string {
   });
 }
 
+/** Nama hari dari tanggal ISO (yyyy-mm-dd), string kosong bila belum valid. */
+export function dayNameFromDate(value: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
+  const d = new Date(`${value}T00:00:00${WIB_OFFSET}`);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("id-ID", {
+    timeZone: WIB_TIMEZONE,
+    weekday: "long",
+  });
+}
+
+/**
+ * URL profil Instagram dari handle (`@nama`, `nama`) atau URL lengkap.
+ * Handle dibersihkan agar tidak bisa menyuntikkan path/skema berbahaya.
+ */
+export function instagramHref(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const raw = value.trim();
+  if (raw === "") return "";
+  if (/^https?:\/\//i.test(raw)) return safeHttpUrl(raw);
+  const handle = raw.replace(/^@/, "").replace(/[^a-zA-Z0-9._]/g, "");
+  return handle ? `https://instagram.com/${handle}` : "";
+}
+
+/** YouTube / URL musik yang aman untuk dibuka di tab baru. */
+export function safeExternalUrl(value: unknown): string {
+  return safeHttpUrl(value);
+}
+
 /** Timestamp target countdown: prioritas Akad, fallback Resepsi. Null bila belum diisi. */
 export function eventTimestamp(content: InvitationContent): number | null {
   const date = content.akadDate || content.receptionDate;
@@ -418,7 +524,12 @@ export function eventTimestamp(content: InvitationContent): number | null {
   if (!/^\d{2}:\d{2}$/.test(rawTime)) return null;
   const [h, m] = rawTime.split(":").map(Number);
   if (h > 23 || m > 59) return null;
-  const t = new Date(`${date}T${rawTime}:00${WIB_OFFSET}`).getTime();
+  const timezone = content.akadDate
+    ? content.akadTimezone
+    : content.receptionTimezone;
+  const offset =
+    timezone === "WITA" ? "+08:00" : timezone === "WIT" ? "+09:00" : WIB_OFFSET;
+  const t = new Date(`${date}T${rawTime}:00${offset}`).getTime();
   return Number.isNaN(t) ? null : t;
 }
 

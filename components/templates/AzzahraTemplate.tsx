@@ -176,7 +176,7 @@ export function AzzahraTemplate({ title, content, guestName, rsvpSlot, defaultOp
                 {e.name}
               </p>
               <p className="mt-3 text-lg">{formatDateLong(e.date)}</p>
-              {e.time && <p className="mt-1 font-sans text-sm opacity-75">Pukul {e.time} WIB</p>}
+              {e.time && <p className="mt-1 font-sans text-sm opacity-75">Pukul {e.time} {e.timezone}</p>}
               {e.venue && (
                 <p className="mt-2 flex items-start justify-center gap-1.5 font-sans text-sm opacity-85">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#c2a164]" />

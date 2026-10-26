@@ -178,7 +178,7 @@ export function ElanTemplate({ title, content, guestName, rsvpSlot, defaultOpene
               <p className="mt-2 text-xl font-extrabold tracking-tight">
                 {formatDateLong(e.date)}
               </p>
-              {e.time && <p className="text-sm text-current/60">{e.time} WIB</p>}
+              {e.time && <p className="text-sm text-current/60">{e.time} {e.timezone}</p>}
               {e.venue && <p className="mt-2 text-sm text-current/75">{e.venue}</p>}
               {e.maps && (
                 <a

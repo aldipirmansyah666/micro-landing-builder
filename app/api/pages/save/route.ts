@@ -18,6 +18,7 @@ import {
   MAX_STORIES,
   MAX_STORY_TEXT_LEN,
   MAX_STORY_TITLE_LEN,
+  MAX_GALLERY_VIDEOS,
   resolveTemplate,
   safeHttpUrl,
   toInvitationContent,
@@ -46,8 +47,13 @@ const URL_KEYS = [
   "heroImage",
   "imageUrl",
   "coverImageUrl",
+  "groomPhoto",
+  "bridePhoto",
+  "liveStreamUrl",
+  "igFilterUrl",
+  "musicRequestUrl",
 ];
-const URL_ARRAY_KEYS = ["galleryImages", "galleryUrls"];
+const URL_ARRAY_KEYS = ["galleryImages", "galleryUrls", "galleryVideos"];
 
 interface SaveBody {
   slug?: unknown;
@@ -93,6 +99,10 @@ function validateContentUrls(content: Record<string, unknown>): string | null {
   const gallery = content.galleryImages ?? content.galleryUrls;
   if (Array.isArray(gallery) && gallery.length > MAX_GALLERY_IMAGES) {
     return `Maksimal ${MAX_GALLERY_IMAGES} foto galeri`;
+  }
+  const videos = content.galleryVideos;
+  if (Array.isArray(videos) && videos.length > MAX_GALLERY_VIDEOS) {
+    return `Maksimal ${MAX_GALLERY_VIDEOS} video galeri`;
   }
   return null;
 }

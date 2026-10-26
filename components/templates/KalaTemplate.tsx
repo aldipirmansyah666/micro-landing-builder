@@ -169,7 +169,7 @@ export function KalaTemplate({ title, content, guestName, rsvpSlot, defaultOpene
                 {e.name}
               </p>
               <p className="mt-2 font-bold text-[#3d2a1e]">{formatDateLong(e.date)}</p>
-              {e.time && <p className="text-sm opacity-70">Pukul {e.time} WIB</p>}
+              {e.time && <p className="text-sm opacity-70">Pukul {e.time} {e.timezone}</p>}
               {e.venue && (
                 <p className="mt-2 flex items-start justify-center gap-1.5 text-sm">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#c96f4a]" />

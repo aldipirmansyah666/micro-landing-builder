@@ -155,8 +155,8 @@ export function FloralTemplate({ title, content, guestName, rsvpSlot, defaultOpe
         </Reveal>
 
         {[
-          { name: "Akad Nikah 💍", date: content.akadDate, time: content.akadTime, venue: content.akadVenue, maps: content.akadMapsUrl },
-          { name: "Resepsi 🎉", date: content.receptionDate, time: content.receptionTime, venue: content.receptionVenue, maps: content.receptionMapsUrl },
+          { name: "Akad Nikah 💍", date: content.akadDate, time: content.akadTime, timezone: content.akadTimezone, venue: content.akadVenue, maps: content.akadMapsUrl },
+          { name: "Resepsi 🎉", date: content.receptionDate, time: content.receptionTime, timezone: content.receptionTimezone, venue: content.receptionVenue, maps: content.receptionMapsUrl },
         ]
           .filter((e) => e.date || e.time || e.venue)
           .map((e) => (
@@ -165,7 +165,7 @@ export function FloralTemplate({ title, content, guestName, rsvpSlot, defaultOpe
               <p className="text-lg font-semibold text-rose-900">{e.name}</p>
               <OrnateDivider lineClass="bg-rose-200" ornament="❀" className="mx-auto mt-3 max-w-32 text-rose-300" />
               <p className="mt-2 text-sm">{formatDateLong(e.date)}</p>
-              {e.time && <p className="text-sm text-rose-900/60">Pukul {e.time} WIB</p>}
+              {e.time && <p className="text-sm text-rose-900/60">Pukul {e.time} {e.timezone}</p>}
               {e.venue && <p className="mt-2 text-sm text-rose-900/80">{e.venue}</p>}
               {e.maps && (
                 <a href={e.maps} target="_blank" rel="noopener noreferrer"

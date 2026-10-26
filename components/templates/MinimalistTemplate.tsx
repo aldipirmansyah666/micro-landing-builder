@@ -149,8 +149,8 @@ export function MinimalistTemplate({ title, content, guestName, rsvpSlot, defaul
         </Reveal>
 
         {[
-          { no: "01", name: "Akad", date: content.akadDate, time: content.akadTime, venue: content.akadVenue, maps: content.akadMapsUrl },
-          { no: "02", name: "Resepsi", date: content.receptionDate, time: content.receptionTime, venue: content.receptionVenue, maps: content.receptionMapsUrl },
+          { no: "01", name: "Akad", date: content.akadDate, time: content.akadTime, timezone: content.akadTimezone, venue: content.akadVenue, maps: content.akadMapsUrl },
+          { no: "02", name: "Resepsi", date: content.receptionDate, time: content.receptionTime, timezone: content.receptionTimezone, venue: content.receptionVenue, maps: content.receptionMapsUrl },
         ]
           .filter((e) => e.date || e.time || e.venue)
           .map((e) => (
@@ -160,7 +160,7 @@ export function MinimalistTemplate({ title, content, guestName, rsvpSlot, defaul
                 {e.no} — {e.name}
               </p>
               <p className="mt-2 text-xl font-semibold tracking-tight">{formatDateLong(e.date)}</p>
-              {e.time && <p className="text-sm text-zinc-500">{e.time} WIB</p>}
+              {e.time && <p className="text-sm text-zinc-500">{e.time} {e.timezone}</p>}
               {e.venue && (
                 <p className="mt-2 flex items-start gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0" /> {e.venue}

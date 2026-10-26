@@ -179,8 +179,8 @@ export function SageTemplate({ title, content, guestName, rsvpSlot, defaultOpene
         </Reveal>
 
         {[
-          { name: "Akad Nikah", date: content.akadDate, time: content.akadTime, venue: content.akadVenue, maps: content.akadMapsUrl },
-          { name: "Resepsi", date: content.receptionDate, time: content.receptionTime, venue: content.receptionVenue, maps: content.receptionMapsUrl },
+          { name: "Akad Nikah", date: content.akadDate, time: content.akadTime, timezone: content.akadTimezone, venue: content.akadVenue, maps: content.akadMapsUrl },
+          { name: "Resepsi", date: content.receptionDate, time: content.receptionTime, timezone: content.receptionTimezone, venue: content.receptionVenue, maps: content.receptionMapsUrl },
         ]
           .filter((e) => e.date || e.time || e.venue)
           .map((e) => (
@@ -193,7 +193,7 @@ export function SageTemplate({ title, content, guestName, rsvpSlot, defaultOpene
                 />
                 <OrnateDivider lineClass="bg-[#8a9b85]/40" ornament="❧" className={`mx-auto mt-3 max-w-32 ${tone}/70`} />
                 <p className="mt-2 text-base font-semibold text-[#2f3d2c]">{formatDateLong(e.date)}</p>
-                {e.time && <p className="text-sm text-[#3d4a3a]/65">Pukul {e.time} WIB</p>}
+                {e.time && <p className="text-sm text-[#3d4a3a]/65">Pukul {e.time} {e.timezone}</p>}
                 {e.venue && <p className="mt-2 text-sm text-[#3d4a3a]/85">{e.venue}</p>}
                 {e.maps && (
                   <a href={e.maps} target="_blank" rel="noopener noreferrer"

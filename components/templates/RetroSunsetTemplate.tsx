@@ -156,7 +156,7 @@ export function RetroSunsetTemplate({ title, content, guestName, rsvpSlot, defau
             <div className="mt-4 rounded-[2rem] border-4 border-[#2f3e33] bg-white px-6 py-7 text-center shadow-[6px_6px_0_#2f3e33]">
               <p className="inline-block rounded-full bg-[#e8a94e]/50 px-4 py-1 text-[11px] font-bold tracking-[0.3em] uppercase">{e.name}</p>
               <p className="mt-3 text-2xl font-black">{formatDateLong(e.date)}</p>
-              {e.time && <p className="mt-1 text-sm font-bold">Pukul {e.time} WIB</p>}
+              {e.time && <p className="mt-1 text-sm font-bold">Pukul {e.time} {e.timezone}</p>}
               {e.venue && (
                 <p className="mt-3 flex items-start justify-center gap-1.5 text-sm opacity-80">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#c96f4a]" />

@@ -153,7 +153,7 @@ export function RusticTerraTemplate({ title, content, guestName, rsvpSlot, defau
             <div className="mt-8 rounded-[2rem] bg-[#3a2d20] px-6 py-7 text-center text-[#f5ede0] shadow-lg">
               <p className="font-sans text-[11px] tracking-[0.35em] text-[#e0a878] uppercase">{e.name}</p>
               <p className="mt-3 text-xl">{formatDateLong(e.date)}</p>
-              {e.time && <p className="mt-1 font-sans text-sm opacity-80">Pukul {e.time} WIB</p>}
+              {e.time && <p className="mt-1 font-sans text-sm opacity-80">Pukul {e.time} {e.timezone}</p>}
               {e.venue && (
                 <p className="mt-3 flex items-start justify-center gap-1.5 font-sans text-sm opacity-85">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#e0a878]" />

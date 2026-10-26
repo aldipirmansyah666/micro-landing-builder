@@ -168,7 +168,7 @@ export function SenjaTemplate({ title, content, guestName, rsvpSlot, defaultOpen
               </div>
               <div className="px-6 py-6 text-center">
                 <p className="text-lg text-[#2c3324]">{formatDateLong(e.date)}</p>
-                {e.time && <p className="mt-1 font-sans text-sm">Pukul {e.time} WIB</p>}
+                {e.time && <p className="mt-1 font-sans text-sm">Pukul {e.time} {e.timezone}</p>}
                 {e.venue && (
                   <p className="mt-2 flex items-start justify-center gap-1.5 font-sans text-sm text-[#3f3a2c]/80">
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#4a5d3a]" />

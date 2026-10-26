@@ -32,16 +32,23 @@ export async function POST(req: Request) {
   }
   const isImage = file.type.startsWith("image/");
   const isAudio = file.type.startsWith("audio/");
-  if (!isImage && !isAudio) {
+  const isVideo = file.type.startsWith("video/");
+  if (!isImage && !isAudio && !isVideo) {
     return NextResponse.json(
-      { error: "Hanya file gambar atau audio yang diizinkan" },
+      { error: "Hanya file gambar, audio, atau video yang diizinkan" },
       { status: 400 }
     );
   }
-  const maxSize = isAudio ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+  const maxSize = isAudio
+    ? 10 * 1024 * 1024
+    : isVideo
+      ? 50 * 1024 * 1024
+      : 5 * 1024 * 1024;
   if (file.size === 0 || file.size > maxSize) {
     return NextResponse.json(
-      { error: `Ukuran file maks ${isAudio ? "10MB" : "5MB"}` },
+      {
+        error: `Ukuran file maks ${isAudio ? "10MB" : isVideo ? "50MB" : "5MB"}`,
+      },
       { status: 413 }
     );
   }

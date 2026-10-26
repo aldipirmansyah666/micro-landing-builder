@@ -9,6 +9,7 @@ import {
   CountdownSection,
   CoupleSection,
   EventSection,
+  ExtraLinksSection,
   GallerySection,
   RsvpSection,
   StorySection,
@@ -97,6 +98,8 @@ export function InvitationLayout({
         <GallerySection content={content} style={config.gallery} />
 
         <AccountsSection content={content} style={config.accounts} />
+
+        <ExtraLinksSection content={content} />
 
         <RsvpSection style={config.rsvp}>{rsvpSlot}</RsvpSection>
 

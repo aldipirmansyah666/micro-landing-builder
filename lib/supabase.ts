@@ -49,6 +49,9 @@ const EXT_BY_MIME: Record<string, string> = {
   "audio/wav": "wav",
   "audio/x-m4a": "m4a",
   "audio/mp4": "m4a",
+  "video/mp4": "mp4",
+  "video/webm": "webm",
+  "video/quicktime": "mov",
 };
 
 /** Ekstensi file untuk MIME yang didukung, undefined bila tak didukung. */

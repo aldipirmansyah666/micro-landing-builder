@@ -141,7 +141,7 @@ export function MinimalistMonoTemplate({ title, content, guestName, rsvpSlot, de
             <div className="mt-8 border border-[#e2e2e2]">
               <div className="flex items-baseline justify-between gap-4 border-b border-[#e2e2e2] px-5 py-3">
                 <p className="text-[11px] tracking-[0.3em] text-[#6a6a6a] uppercase">{e.name}</p>
-                {e.time && <p className="text-xs tabular-nums">{e.time} WIB</p>}
+                {e.time && <p className="text-xs tabular-nums">{e.time} {e.timezone}</p>}
               </div>
               <div className="px-5 py-5">
                 <p className="text-xl font-medium">{formatDateLong(e.date)}</p>

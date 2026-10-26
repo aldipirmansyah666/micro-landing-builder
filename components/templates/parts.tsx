@@ -1,9 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
-import { eventTimestamp, type InvitationContent, type StoryEntry } from "@/lib/invitation";
+import { dayNameFromDate, eventTimestamp, type InvitationContent, type StoryEntry } from "@/lib/invitation";
 import { Reveal, useCountdown, useCoverOpened } from "./shared";
-
 /**
  * State bersama seluruh template katalog baru: cover, audio backsound
  * (tidak autoplay — hanya setelah "Buka Undangan" diklik), dan target
@@ -35,27 +34,35 @@ export interface CoupleEntry {
   nick: string;
   full: string;
   parents: string;
+  childOrder: string;
+  instagram: string;
+  photo: string;
   label: string;
 }
 
 /** Baris mempelai yang terisi saja (kosong → disaring pemanggil). */
 export function coupleEntries(content: InvitationContent): CoupleEntry[] {
-  return [
-    {
-      key: "groom",
-      nick: content.groomNickname || content.groomFullName,
-      full: content.groomFullName,
-      parents: content.groomParents,
-      label: "Putra dari",
-    },
-    {
-      key: "bride",
-      nick: content.brideNickname || content.brideFullName,
-      full: content.brideFullName,
-      parents: content.brideParents,
-      label: "Putri dari",
-    },
-  ];
+  const groom: CoupleEntry = {
+    key: "groom",
+    nick: content.groomNickname || content.groomFullName,
+    full: content.groomFullName,
+    parents: content.groomParents,
+    childOrder: content.groomChildOrder,
+    instagram: content.groomInstagram,
+    photo: content.groomPhoto,
+    label: "Putra dari",
+  };
+  const bride: CoupleEntry = {
+    key: "bride",
+    nick: content.brideNickname || content.brideFullName,
+    full: content.brideFullName,
+    parents: content.brideParents,
+    childOrder: content.brideChildOrder,
+    instagram: content.brideInstagram,
+    photo: content.bridePhoto,
+    label: "Putri dari",
+  };
+  return content.coupleOrder === "groomFirst" ? [groom, bride] : [bride, groom];
 }
 
 export interface EventEntry {
@@ -63,8 +70,11 @@ export interface EventEntry {
   name: string;
   date: string;
   time: string;
+  timezone: string;
+  day: string;
   venue: string;
   maps: string;
+  dresscode: string;
 }
 
 /** Acara yang punya isi saja — tanpa tanggal dummy. */
@@ -79,16 +89,22 @@ export function eventEntries(
       name: akadName,
       date: content.akadDate,
       time: content.akadTime,
+      timezone: content.akadTimezone,
+      day: dayNameFromDate(content.akadDate),
       venue: content.akadVenue,
       maps: content.akadMapsUrl,
+      dresscode: content.akadDresscode,
     },
     {
       key: "reception",
       name: receptionName,
       date: content.receptionDate,
       time: content.receptionTime,
+      timezone: content.receptionTimezone,
+      day: dayNameFromDate(content.receptionDate),
       venue: content.receptionVenue,
       maps: content.receptionMapsUrl,
+      dresscode: content.receptionDresscode,
     },
   ].filter((e) => e.date || e.time || e.venue);
 }

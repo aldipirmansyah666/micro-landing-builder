@@ -157,8 +157,8 @@ export function ElegantTemplate({ title, content, guestName, rsvpSlot, defaultOp
         </Reveal>
 
         {[
-          { name: "Akad Nikah", date: content.akadDate, time: content.akadTime, venue: content.akadVenue, maps: content.akadMapsUrl },
-          { name: "Resepsi", date: content.receptionDate, time: content.receptionTime, venue: content.receptionVenue, maps: content.receptionMapsUrl },
+          { name: "Akad Nikah", date: content.akadDate, time: content.akadTime, timezone: content.akadTimezone, venue: content.akadVenue, maps: content.akadMapsUrl },
+          { name: "Resepsi", date: content.receptionDate, time: content.receptionTime, timezone: content.receptionTimezone, venue: content.receptionVenue, maps: content.receptionMapsUrl },
         ]
           .filter((e) => e.date || e.time || e.venue)
           .map((e) => (
@@ -171,7 +171,7 @@ export function ElegantTemplate({ title, content, guestName, rsvpSlot, defaultOp
               />
               <OrnateDivider lineClass="bg-amber-300/30" ornament="✦" className="mx-auto mt-3 max-w-36 text-amber-300/70" />
               <p className="mt-3 text-lg">{formatDateLong(e.date)}</p>
-              {e.time && <p className="text-sm text-amber-100/70">Pukul {e.time} WIB</p>}
+              {e.time && <p className="text-sm text-amber-100/70">Pukul {e.time} {e.timezone}</p>}
               {e.venue && <p className="mt-2 text-sm text-amber-100/80">{e.venue}</p>}
               {e.maps && (
                 <a href={e.maps} target="_blank" rel="noopener noreferrer"

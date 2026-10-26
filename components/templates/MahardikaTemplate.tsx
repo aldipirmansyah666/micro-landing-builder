@@ -165,7 +165,7 @@ export function MahardikaTemplate({ title, content, guestName, rsvpSlot, default
               </p>
               <p className="mt-3 text-xl text-[#f2e7c9]">{formatDateLong(e.date)}</p>
               {e.time && (
-                <p className="mt-1 font-sans text-sm text-[#f5efe0]/70">Pukul {e.time} WIB</p>
+                <p className="mt-1 font-sans text-sm text-[#f5efe0]/70">Pukul {e.time} {e.timezone}</p>
               )}
               {e.venue && (
                 <p className="mt-3 flex items-start justify-center gap-1.5 font-sans text-sm text-[#f5efe0]/80">

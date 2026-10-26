@@ -162,7 +162,7 @@ export function VerdantGlassTemplate({ title, content, guestName, rsvpSlot, defa
                 {e.name}
               </p>
               <p className="mt-3 text-xl">{formatDateLong(e.date)}</p>
-              {e.time && <p className="mt-1 font-sans text-sm text-emerald-100/80">Pukul {e.time} WIB</p>}
+              {e.time && <p className="mt-1 font-sans text-sm text-emerald-100/80">Pukul {e.time} {e.timezone}</p>}
               {e.venue && (
                 <p className="mt-3 flex items-start justify-center gap-1.5 font-sans text-sm text-emerald-100/80">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0" />

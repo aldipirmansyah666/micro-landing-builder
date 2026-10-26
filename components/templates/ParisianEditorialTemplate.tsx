@@ -150,7 +150,7 @@ export function ParisianEditorialTemplate({ title, content, guestName, rsvpSlot,
                 </p>
                 <div className="px-5 py-5">
                   <p className="text-2xl font-black uppercase">{formatDateLong(e.date)}</p>
-                  {e.time && <p className="mt-1 text-sm font-bold">Pukul {e.time} WIB</p>}
+                  {e.time && <p className="mt-1 text-sm font-bold">Pukul {e.time} {e.timezone}</p>}
                   {e.venue && (
                     <p className="mt-3 flex items-start gap-1.5 text-sm opacity-80">
                       <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
