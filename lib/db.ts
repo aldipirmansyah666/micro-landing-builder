@@ -583,6 +583,29 @@ export async function upsertPaidOrder(input: {
   return order;
 }
 
+/**
+ * Catat status non-final/akhir dari notifikasi pembayaran (pending, cancel,
+ * expire, deny) pada baris order yang SUDAH ada — agar tidak ada order yang
+ * tertinggal "pending" selamanya dan admin bisa melihat jejak pembayaran
+ * gagal/tertunda.
+ *
+ * Baris ber-status `paid` TIDAK PERNAH diturunkan: provider bisa mengirim
+ * notifikasi `pending` yang tertunda setelah `settlement` tiba (urutan retry
+ * tidak dijamin), dan status PRO tidak boleh mundur.
+ */
+export async function recordOrderStatus(
+  orderId: string,
+  status: string
+): Promise<boolean> {
+  const rows = (await sql`
+    UPDATE orders
+    SET status = ${status}, updated_at = NOW()
+    WHERE order_id = ${orderId} AND status <> 'paid'
+    RETURNING id;
+  `) as { id: number }[];
+  return rows.length > 0;
+}
+
 export interface Wish {
   id: number;
   page_slug: string;

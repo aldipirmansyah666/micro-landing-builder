@@ -23,6 +23,7 @@ import {
 import { DeleteLandingPageButton } from "./DeleteButton";
 import { CopyWaLinkButton, ExportGuestsButton } from "./QuickActions";
 import { UpgradeProButton } from "@/components/billing/UpgradeProModal";
+import { UpgradedBanner } from "@/components/billing/UpgradedBanner";
 import { hasProAccess } from "@/lib/entitlements";
 import { templateLabel } from "@/lib/templates";
 import { buttonClass } from "@/design-system/primitives";
@@ -120,7 +121,11 @@ function LandingPageCard({
   );
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ upgraded?: string | string[] }>;
+}) {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
 
@@ -137,6 +142,15 @@ export default async function DashboardPage() {
   const stats = await getDashboardStats(userId);
   const accountPro =
     isUserAdmin || pages.some((p) => p.is_pro);
+
+  // Sinyal sukses pembayaran dari redirect Midtrans/Xendit (?upgraded=<slug>).
+  // Hanya ditampilkan bila slug memang milik user ini — mencegah parameter
+  // URL dipakai untuk menampilkan status halaman orang lain.
+  const { upgraded } = await searchParams;
+  const upgradedSlug =
+    typeof upgraded === "string" && pages.some((p) => p.slug === upgraded)
+      ? upgraded
+      : null;
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 font-sans text-zinc-900 dark:bg-black dark:text-zinc-50">
@@ -186,6 +200,7 @@ export default async function DashboardPage() {
       </header>
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
+        {upgradedSlug && <UpgradedBanner slug={upgradedSlug} />}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight">

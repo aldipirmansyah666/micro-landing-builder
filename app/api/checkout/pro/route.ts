@@ -221,7 +221,13 @@ async function createMidtransTransaction(input: {
       ],
       // Hanya kirim objek yang valid; `undefined` otomatis dihilangkan JSON.
       customer_details: input.email ? { email: input.email } : undefined,
-      callbacks: { finish: `${input.origin}/dashboard` },
+      // Sertakan `?upgraded=` agar dashboard menampilkan konfirmasi sukses
+      // setelah user kembali dari halaman pembayaran (konsisten dengan
+      // `success_redirect_url` Xendit). Param lain (order_id, status_code,
+      // dll.) ditambahkan sendiri oleh Midtrans ke URL finish.
+      callbacks: {
+        finish: `${input.origin}/dashboard?upgraded=${encodeURIComponent(input.slug)}`,
+      },
     }),
   });
   if (!res.ok) {

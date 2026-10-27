@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import {
   getLandingPageBySlug,
   getOrderByOrderId,
+  recordOrderStatus,
   setLandingPageProBySlug,
   upsertPaidOrder,
 } from "@/lib/db";
@@ -39,6 +40,18 @@ import {
 
 // Status yang dianggap "pembayaran berhasil" (case-insensitive).
 const PAID_STATUSES = new Set(["settlement", "capture", "success", "paid", "settled"]);
+
+/**
+ * Pemetaan notifikasi non-final/gagal → nilai kolom `orders.status`.
+ * Tanpa entri di sini, notifikasi diabaikan (hanya diakui 200 agar retry
+ * provider berhenti). `paid` sengaja tidak pernah di-override oleh map ini.
+ */
+const ORDER_STATUS_MAP: Record<string, string> = {
+  pending: "pending",
+  cancel: "canceled",
+  expire: "expired",
+  deny: "denied",
+};
 
 interface WebhookBody {
   // Midtrans
@@ -204,7 +217,30 @@ export async function POST(req: Request) {
   }
 
   if (!PAID_STATUSES.has(rawStatus)) {
-    // Status non-final (pending/expire/cancel/dll): akui agar retry berhenti.
+    // Status non-final (pending) atau gagal (cancel/expire/deny): akui agar
+    // retry provider berhenti, DAN catat di tabel orders supaya ada jejak
+    // audit — baris tidak dibiarkan "pending" selamanya. Baris `paid` tidak
+    // bisa diturunkan oleh notifikasi yang datang belakangan (recordOrderStatus
+    // men-guard kolom status).
+    const nonFinalOrderId =
+      asString(body.order_id) || asString(body.external_id);
+    const recordedStatus = ORDER_STATUS_MAP[rawStatus];
+    if (nonFinalOrderId && recordedStatus) {
+      try {
+        const existing = await getOrderByOrderId(nonFinalOrderId);
+        if (existing) {
+          await recordOrderStatus(nonFinalOrderId, recordedStatus);
+        }
+      } catch (error) {
+        // Kegagalan pencatatan status non-final TIDAK boleh menghasilkan
+        // status error — provider akan me-retry tanpa henti untuk notifikasi
+        // yang bukan pembayaran sukses. Detailnya cukup di log server.
+        console.error(
+          `[payment-webhook] gagal mencatat status '${rawStatus}' untuk order ${nonFinalOrderId}`,
+          error
+        );
+      }
+    }
     return NextResponse.json({ ok: true, ignored: rawStatus || "no-status" });
   }
 

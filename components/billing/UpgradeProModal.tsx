@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Crown, ExternalLink, Loader2, RefreshCw } from "lucide-react";
 import { Dialog } from "@/design-system/primitives";
 import { useProStatus } from "./useProStatus";
@@ -12,7 +12,15 @@ const PRO_BENEFITS = [
   "Tanpa footer branding platform",
 ];
 
-function formatIDR(n: number): string {
+/**
+ * Harga tampilan SEBELUM info checkout termuat dari server.
+ * Sengaja disamakan dengan harga PRO default (Rp 49.000) agar label tombol
+ * upgrade tidak pernah kosong; begitu `/api/checkout/pro` menjawab, label
+ * memakai `price_idr` yang sebenarnya.
+ */
+export const PRO_PRICE_FALLBACK_IDR = 49_000;
+
+export function formatIDR(n: number): string {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
@@ -120,13 +128,27 @@ function isAbortError(error: unknown): boolean {
   );
 }
 
-export function UpgradeProButton({ slug }: { slug: string }) {
+/**
+ * State + handler checkout PRO. Satu-satunya tempat logika pembayaran hidup
+ * (modal info template, tombol upgrade, dsb. memakai hook yang sama sehingga
+ * perilaku Snap popup, polling webhook, dan pesan error selalu konsisten).
+ *
+ * - `ensureInfo()`  : ambil harga/provider/key dari GET /api/checkout/pro
+ *                     (sekali saja, lalu di-cache di state).
+ * - `handlePay()`   : POST /api/checkout/pro → Snap popup (jalur utama) atau
+ *                     redirect tab baru (fallback).
+ * - `activated`     : true setelah polling `/api/user` mengonfirmasi webhook
+ *                     sudah menaikkan `is_pro` — pemanggil bisa menutup
+ *                     modal peringatannya sendiri.
+ */
+export function useProCheckout(slug: string) {
   const [open, setOpen] = useState(false);
   const [info, setInfo] = useState<CheckoutInfo | null>(null);
   const [loadingInfo, setLoadingInfo] = useState(false);
   const [paying, setPaying] = useState(false);
   const [paid, setPaid] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [activated, setActivated] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { syncProStatus, waitForProActivation } = useProStatus();
@@ -140,6 +162,7 @@ export function UpgradeProButton({ slug }: { slug: string }) {
   const settledRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
+  const infoRef = useRef<CheckoutInfo | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -172,6 +195,22 @@ export function UpgradeProButton({ slug }: { slug: string }) {
     setVerifying(false);
   }
 
+  /** Ambil info harga/provider (sekali per sesi). Aman dipanggil berkali-kali. */
+  const ensureInfo = useCallback(async () => {
+    if (infoRef.current) return;
+    setLoadingInfo(true);
+    try {
+      const res = await fetch("/api/checkout/pro");
+      const data = (await res.json()) as CheckoutInfo;
+      infoRef.current = data;
+      if (mountedRef.current) setInfo(data);
+    } catch {
+      if (mountedRef.current) setError("Gagal memuat info pembayaran");
+    } finally {
+      if (mountedRef.current) setLoadingInfo(false);
+    }
+  }, []);
+
   async function handleOpen() {
     // Invalidasi callback dari sesi pembayaran sebelumnya.
     paySessionRef.current += 1;
@@ -183,18 +222,9 @@ export function UpgradeProButton({ slug }: { slug: string }) {
     setPaid(false);
     setVerifying(false);
     setPaying(false);
+    setActivated(false);
 
-    if (!info) {
-      setLoadingInfo(true);
-      try {
-        const res = await fetch("/api/checkout/pro");
-        setInfo((await res.json()) as CheckoutInfo);
-      } catch {
-        setError("Gagal memuat info pembayaran");
-      } finally {
-        setLoadingInfo(false);
-      }
-    }
+    if (!infoRef.current) await ensureInfo();
   }
 
   /**
@@ -228,6 +258,7 @@ export function UpgradeProButton({ slug }: { slug: string }) {
       if (!mountedRef.current || sessionId !== paySessionRef.current) return;
 
       if (active) {
+        setActivated(true);
         closeModalCleanly();
       } else {
         setVerifying(false);
@@ -292,6 +323,7 @@ export function UpgradeProButton({ slug }: { slug: string }) {
       if (!mountedRef.current || sessionId !== paySessionRef.current) return;
 
       if (active) {
+        setActivated(true);
         closeModalCleanly();
       } else {
         setVerifying(false);
@@ -321,6 +353,7 @@ export function UpgradeProButton({ slug }: { slug: string }) {
     setError(null);
     setPaid(false);
     setVerifying(false);
+    setActivated(false);
 
     try {
       const res = await fetch("/api/checkout/pro", {
@@ -342,7 +375,10 @@ export function UpgradeProButton({ slug }: { slug: string }) {
 
       if (data.alreadyPro) {
         await syncProStatus();
-        if (sessionId === paySessionRef.current) closeModalCleanly();
+        if (sessionId === paySessionRef.current) {
+          setActivated(true);
+          closeModalCleanly();
+        }
         return;
       }
       if (!res.ok) {
@@ -422,6 +458,48 @@ export function UpgradeProButton({ slug }: { slug: string }) {
       setPaying(false);
     }
   }
+
+  return {
+    /** Modal trigger (hanya dipakai UpgradeProButton). */
+    open,
+    handleOpen,
+    handleModalClose,
+    /** Info harga & konfigurasi checkout. */
+    info,
+    loadingInfo,
+    ensureInfo,
+    /** Status pembayaran untuk dirender pemanggil. */
+    paying,
+    paid,
+    verifying,
+    activated,
+    error,
+    /** Aksi. */
+    handlePay,
+    handleCheckStatus,
+    closeModalCleanly,
+  };
+}
+
+/**
+ * Tombol upgrade + modal info lengkap (dashboard, header builder, panel
+ * fitur PRO). Perilaku tidak berubah — logika checkout kini tinggal di
+ * `useProCheckout`.
+ */
+export function UpgradeProButton({ slug }: { slug: string }) {
+  const {
+    open,
+    handleOpen,
+    handleModalClose,
+    info,
+    loadingInfo,
+    paying,
+    paid,
+    verifying,
+    error,
+    handlePay,
+    handleCheckStatus,
+  } = useProCheckout(slug);
 
   return (
     <>

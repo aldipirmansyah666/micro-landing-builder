@@ -25,6 +25,7 @@ import {
   Pause,
   Play,
   Plus,
+  RefreshCw,
   RotateCcw,
   Save,
   Trash2,
@@ -59,7 +60,12 @@ import {
 import { InvitationTemplate } from "@/components/templates/InvitationTemplate";
 import { CompactTemplateSelector } from "@/components/templates/TemplateCatalog";
 import { SafeImg } from "@/components/templates/shared";
-import { UpgradeProButton } from "@/components/billing/UpgradeProModal";
+import {
+  UpgradeProButton,
+  useProCheckout,
+  formatIDR,
+  PRO_PRICE_FALLBACK_IDR,
+} from "@/components/billing/UpgradeProModal";
 import {
   BACKSOUND_PRESETS,
   isPresetBacksoundUrl,
@@ -700,6 +706,35 @@ function ProTemplateInfoModal({
   savedSlug: string | null;
   onClose: () => void;
 }) {
+  const {
+    info,
+    ensureInfo,
+    paying,
+    paid,
+    verifying,
+    activated,
+    error,
+    handlePay,
+    handleCheckStatus,
+  } = useProCheckout(savedSlug ?? "");
+
+  // Harga diambil begitu modal dibuka agar label tombol upgrade akurat.
+  useEffect(() => {
+    void ensureInfo();
+  }, [ensureInfo]);
+
+  // Pembayaran terkonfirmasi (webhook sudah menaikkan is_pro) → tutup modal
+  // peringatan; refresh router otomatis menandai builder sebagai PRO sehingga
+  // template kini bisa disimpan & dipublish.
+  useEffect(() => {
+    if (activated) onClose();
+  }, [activated, onClose]);
+
+  const priceLabel =
+    info?.price_idr != null
+      ? formatIDR(info.price_idr)
+      : formatIDR(PRO_PRICE_FALLBACK_IDR);
+
   return (
     <Dialog
       open
@@ -722,6 +757,23 @@ function ProTemplateInfoModal({
         Upgrade ke PRO untuk menyimpan & mempublish undangan dengan template
         ini. Paket Free tersimpan dengan template Aruna.
       </p>
+
+      {verifying && (
+        <p className="mt-3 flex items-center justify-center gap-2 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Memverifikasi pembayaran dan mengaktifkan PRO...
+        </p>
+      )}
+      {error && (
+        <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>
+      )}
+      {paid && !verifying && (
+        <p className="mt-3 rounded-2xl bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950 dark:text-green-300">
+          Pembayaran diterima. Klik &quot;Cek Status Pembayaran&quot; untuk
+          memastikan webhook Midtrans sudah memperbarui status PRO.
+        </p>
+      )}
+
       <div className="mt-5 flex gap-2">
         <button
           type="button"
@@ -731,9 +783,38 @@ function ProTemplateInfoModal({
           Tetap Preview
         </button>
         {savedSlug ? (
-          <div className="flex-1 [&>button]:w-full">
-            <UpgradeProButton slug={savedSlug} />
-          </div>
+          paid && !verifying ? (
+            // Sudah bayar — cegah checkout ganda dengan mengganti tombol
+            // menjadi aksi verifikasi (sama seperti modal upgrade).
+            <button
+              type="button"
+              onClick={() => void handleCheckStatus()}
+              className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-amber-400 text-sm font-semibold text-amber-950 transition-colors hover:bg-amber-300"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Cek Status Pembayaran
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void handlePay()}
+              disabled={
+                paying ||
+                verifying ||
+                (info !== null && !info.configured)
+              }
+              className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-amber-400 text-sm font-semibold text-amber-950 transition-colors hover:bg-amber-300 disabled:opacity-50"
+            >
+              {paying || verifying ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Crown className="h-4 w-4" />
+              )}
+              {verifying
+                ? "Memverifikasi..."
+                : `Upgrade Sekarang (${priceLabel})`}
+            </button>
+          )
         ) : (
           <button
             type="button"
@@ -744,6 +825,17 @@ function ProTemplateInfoModal({
           </button>
         )}
       </div>
+
+      {!savedSlug && (
+        <p className="mt-2 text-center text-xs opacity-60">
+          Simpan undangan terlebih dahulu untuk membuka upgrade.
+        </p>
+      )}
+      {!savedSlug && info !== null && !info.configured && (
+        <p className="mt-1 text-center text-xs text-red-600 dark:text-red-400">
+          Pembayaran belum dikonfigurasi. Hubungi admin.
+        </p>
+      )}
     </Dialog>
   );
 }
