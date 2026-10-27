@@ -25,7 +25,7 @@ import {
   useCountdown,
   useCoverOpened,
 } from "./shared";
-import { coupleEntries, eventEntries } from "./parts";
+import { coupleEntries, coupleFamilyLine, eventEntries } from "./parts";
 import type { TemplateProps } from "./types";
 
 /** Modern Minimalist: clean hitam-putih, sans-serif, presisi. */
@@ -117,10 +117,9 @@ export function MinimalistTemplate({ title, content, guestName, rsvpSlot, defaul
                   {p.full && p.full !== p.nick && (
                     <p className="mt-0.5 text-xs text-zinc-500">{p.full}</p>
                   )}
-                  {p.childOrder && (
-                    <p className="mt-2 text-xs text-zinc-500">Anak ke-{p.childOrder}</p>
+                  {coupleFamilyLine(p, { includeLabel: false }) && (
+                    <p className="mt-2 text-xs text-zinc-500">{coupleFamilyLine(p, { includeLabel: false })}</p>
                   )}
-                  {p.parents && <p className="mt-1 text-xs text-zinc-500">{p.parents}</p>}
                   {instagramHref(p.instagram) && (
                     <a
                       href={instagramHref(p.instagram)}

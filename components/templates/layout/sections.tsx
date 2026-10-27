@@ -21,6 +21,7 @@ import {
   CountdownUnits,
   StoryTimeline,
   coupleEntries,
+  coupleFamilyLine,
   eventEntries,
 } from "../parts";
 import type { CoupleEntry } from "../parts";
@@ -56,17 +57,13 @@ function coupleDetail(
   const instagramLabel = instagramHandle(entry.instagram);
   const parentsClass = resolveClass(style.parents, entry, index, total);
   const instagramClass = style.instagramClass ?? parentsClass;
+  const family = coupleFamilyLine(entry, {
+    includeParents,
+    includeLabel: style.parentsIncludeLabel !== false,
+  });
   return (
     <>
-      {entry.childOrder && (
-        <p className={parentsClass}>Anak ke-{entry.childOrder}</p>
-      )}
-      {includeParents && entry.parents && (
-        <p className={parentsClass}>
-          {style.parentsIncludeLabel === false ? "" : `${entry.label} `}
-          {entry.parents}
-        </p>
-      )}
+      {family && <p className={parentsClass}>{family}</p>}
       {instagram && (
         <a
           href={instagram}
@@ -125,6 +122,9 @@ export function CoupleSection({
             const instagram = instagramHref(p.instagram);
             const instagramLabel = instagramHandle(p.instagram);
             const instagramClass = style.instagramClass ?? parentsClass;
+            const family = coupleFamilyLine(p, {
+              includeLabel: style.parentsIncludeLabel !== false,
+            });
             return (
               <div key={p.key} className={itemClass || undefined}>
                 <div className="flex items-center gap-3">
@@ -146,15 +146,7 @@ export function CoupleSection({
                     )}
                   </div>
                 </div>
-                {p.childOrder && (
-                  <p className={parentsClass}>Anak ke-{p.childOrder}</p>
-                )}
-                {p.parents && (
-                  <p className={parentsClass}>
-                    {style.parentsIncludeLabel === false ? "" : `${p.label} `}
-                    {p.parents}
-                  </p>
-                )}
+                {family && <p className={parentsClass}>{family}</p>}
                 {instagram && (
                   <a
                     href={instagram}
@@ -172,6 +164,9 @@ export function CoupleSection({
 
           if (style.layout === "between") {
             const between = style.between;
+            const family = coupleFamilyLine(p, {
+              includeLabel: style.parentsIncludeLabel !== false,
+            });
             return (
               <div key={p.key} className={itemClass || undefined}>
                 <div className={between?.nameWrap || undefined}>
@@ -180,9 +175,6 @@ export function CoupleSection({
                   <p className={nameClass}>{p.nick || "-"}</p>
                   {p.full && p.full !== p.nick && (
                     <p className={fullClass}>{p.full}</p>
-                  )}
-                  {p.childOrder && (
-                    <p className={parentsClass}>Anak ke-{p.childOrder}</p>
                   )}
                   {instagramHref(p.instagram) && (
                     <a
@@ -196,12 +188,7 @@ export function CoupleSection({
                     </a>
                   )}
                 </div>
-                {p.parents && (
-                  <p className={between?.parents}>
-                    {style.parentsIncludeLabel === false ? "" : `${p.label} `}
-                    {p.parents}
-                  </p>
-                )}
+                {family && <p className={between?.parents}>{family}</p>}
               </div>
             );
           }

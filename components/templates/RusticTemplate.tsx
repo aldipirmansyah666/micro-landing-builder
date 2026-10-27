@@ -29,7 +29,7 @@ import {
   useCountdown,
   useCoverOpened,
 } from "./shared";
-import { coupleEntries, eventEntries } from "./parts";
+import { coupleEntries, coupleFamilyLine, eventEntries } from "./parts";
 import type { TemplateProps } from "./types";
 
 /** Rustic Earthy: nuansa kayu/hangat, tone earthy, font casual. */
@@ -107,11 +107,8 @@ export function RusticTemplate({ title, content, guestName, rsvpSlot, defaultOpe
                     {p.full && p.full !== p.nick && (
                       <p className="mt-0.5 text-sm text-stone-500">{p.full}</p>
                     )}
-                    {p.childOrder && (
-                      <p className="mt-2 text-xs text-stone-500">Anak ke-{p.childOrder}</p>
-                    )}
-                    {p.parents && (
-                      <p className="mt-1 text-xs text-stone-500">{p.label} {p.parents}</p>
+                    {coupleFamilyLine(p) && (
+                      <p className="mt-2 text-xs text-stone-500">{coupleFamilyLine(p)}</p>
                     )}
                     {instagramHref(p.instagram) && (
                       <a

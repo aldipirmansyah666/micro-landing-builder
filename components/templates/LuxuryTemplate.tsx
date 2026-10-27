@@ -31,7 +31,7 @@ import {
   useCountdown,
   useCoverOpened,
 } from "./shared";
-import { coupleEntries, eventEntries } from "./parts";
+import { coupleEntries, coupleFamilyLine, eventEntries } from "./parts";
 import type { TemplateProps } from "./types";
 
 /**
@@ -133,12 +133,9 @@ export function LuxuryTemplate({ title, content, guestName, rsvpSlot, defaultOpe
                         {p.full && p.full !== p.nick && (
                           <p className="mt-0.5 text-sm text-emerald-50/70">{p.full}</p>
                         )}
-                        {p.childOrder && (
-                          <p className="mt-2 text-xs text-emerald-50/55">Anak ke-{p.childOrder}</p>
-                        )}
-                        {p.parents && (
-                          <p className="mt-1 text-xs text-emerald-50/55">{p.label} {p.parents}</p>
-                        )}
+                          {coupleFamilyLine(p) && (
+                            <p className="mt-2 text-xs text-emerald-50/55">{coupleFamilyLine(p)}</p>
+                          )}
                         {instagramHref(p.instagram) && (
                           <a
                             href={instagramHref(p.instagram)}

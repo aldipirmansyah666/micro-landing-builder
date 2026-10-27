@@ -30,7 +30,7 @@ import {
   useCountdown,
   useCoverOpened,
 } from "./shared";
-import { coupleEntries, eventEntries } from "./parts";
+import { coupleEntries, coupleFamilyLine, eventEntries } from "./parts";
 import type { TemplateProps } from "./types";
 
 /** Elegant Gold: mewah, latar gelap, aksen emas, font serif. */
@@ -107,11 +107,8 @@ export function ElegantTemplate({ title, content, guestName, rsvpSlot, defaultOp
                   {p.full && p.full !== p.nick && (
                     <p className="mt-0.5 text-sm text-amber-100/70">{p.full}</p>
                   )}
-                  {p.childOrder && (
-                    <p className="mt-2 text-xs text-amber-100/60">Anak ke-{p.childOrder}</p>
-                  )}
-                  {p.parents && (
-                    <p className="mt-1 text-xs text-amber-100/60">{p.label} {p.parents}</p>
+                  {coupleFamilyLine(p) && (
+                    <p className="mt-2 text-xs text-amber-100/60">{coupleFamilyLine(p)}</p>
                   )}
                   {instagramHref(p.instagram) && (
                     <a

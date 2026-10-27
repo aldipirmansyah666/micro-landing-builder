@@ -65,6 +65,43 @@ export function coupleEntries(content: InvitationContent): CoupleEntry[] {
   return content.coupleOrder === "groomFirst" ? [groom, bride] : [bride, groom];
 }
 
+export interface CoupleFamilyOptions {
+  /** Sertakan baris orang tua (bila false, hanya urutan anak yang tampil). */
+  includeParents?: boolean;
+  /**
+   * Sertakan label gender ("Putra dari"/"Putri dari") — hanya relevan saat
+   * baris berisi orang tua TANPA urutan anak. Default true.
+   */
+  includeLabel?: boolean;
+}
+
+/**
+ * Satu baris informasi keluarga yang digabung menjadi kalimat natural
+ * (bukan lagi dua baris kaku "Anak ke-X" dan "Putra dari ..."):
+ *
+ * - anak + orang tua → `Anak ke-2 dari Bpk. Haryono & Ibu Sulastri`
+ * - hanya anak       → `Anak ke-2`
+ * - hanya orang tua  → `Putra dari Bpk. Haryono & Ibu Sulastri`
+ *                      (tanpa label bila `includeLabel` false)
+ * - keduanya kosong  → `""` (pemanggil melewati render)
+ *
+ * Saat anak + orang tua tersedia, frasa "dari ..." dipakai tanpa label
+ * gender sehingga kalimat tetap ringkas dan tidak menduplikasi label
+ * yang mungkin sudah ditampilkan terpisah oleh `labelAbove`.
+ */
+export function coupleFamilyLine(
+  entry: Pick<CoupleEntry, "childOrder" | "parents" | "label">,
+  options: CoupleFamilyOptions = {}
+): string {
+  const { includeParents = true, includeLabel = true } = options;
+  const child = entry.childOrder.trim();
+  const parents = includeParents ? entry.parents.trim() : "";
+  if (child && parents) return `Anak ke-${child} dari ${parents}`;
+  if (child) return `Anak ke-${child}`;
+  if (parents) return includeLabel ? `${entry.label} ${parents}` : parents;
+  return "";
+}
+
 export interface EventEntry {
   key: string;
   name: string;
