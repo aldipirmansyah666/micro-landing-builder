@@ -30,6 +30,7 @@ import {
   useCountdown,
   useCoverOpened,
 } from "./shared";
+import { coupleEntries, eventEntries } from "./parts";
 import type { TemplateProps } from "./types";
 
 /** Elegant Gold: mewah, latar gelap, aksen emas, font serif. */
@@ -98,13 +99,10 @@ export function ElegantTemplate({ title, content, guestName, rsvpSlot, defaultOp
         <div className="mt-8 text-center">
           <h2 className="text-shimmer-gold text-4xl font-semibold">{names}</h2>
           <OrnateDivider lineClass="bg-amber-300/50" ornament="❦" className="mx-auto mt-4 max-w-48 text-amber-300" />
-          {[
-            { nick: content.groomNickname || content.groomFullName, full: content.groomFullName, parents: content.groomParents, childOrder: content.groomChildOrder, instagram: content.groomInstagram, label: "Putra dari" },
-            { nick: content.brideNickname || content.brideFullName, full: content.brideFullName, parents: content.brideParents, childOrder: content.brideChildOrder, instagram: content.brideInstagram, label: "Putri dari" },
-          ].map(
+          {coupleEntries(content).map(
             (p) =>
               (p.nick || p.parents || p.childOrder || instagramHref(p.instagram)) && (
-                <div key={p.label} className={`mt-4 rounded-2xl border px-5 py-5 ${card}`}>
+                <div key={p.key} className={`mt-4 rounded-2xl border px-5 py-5 ${card}`}>
                   <p className="text-2xl font-semibold text-amber-100">{p.nick || "-"}</p>
                   {p.full && p.full !== p.nick && (
                     <p className="mt-0.5 text-sm text-amber-100/70">{p.full}</p>
@@ -173,13 +171,8 @@ export function ElegantTemplate({ title, content, guestName, rsvpSlot, defaultOp
         </div>
         </Reveal>
 
-        {[
-          { name: "Akad Nikah", date: content.akadDate, time: content.akadTime, timezone: content.akadTimezone, venue: content.akadVenue, maps: content.akadMapsUrl },
-          { name: "Resepsi", date: content.receptionDate, time: content.receptionTime, timezone: content.receptionTimezone, venue: content.receptionVenue, maps: content.receptionMapsUrl },
-        ]
-          .filter((e) => e.date || e.time || e.venue)
-          .map((e) => (
-            <Reveal key={e.name}>
+        {eventEntries(content).map((e) => (
+            <Reveal key={e.key}>
             <div className={`mt-4 rounded-2xl border px-5 py-6 text-center ${card}`}>
               <SectionHeading
                 kicker={e.name}

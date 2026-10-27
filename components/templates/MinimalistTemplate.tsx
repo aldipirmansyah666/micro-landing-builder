@@ -25,6 +25,7 @@ import {
   useCountdown,
   useCoverOpened,
 } from "./shared";
+import { coupleEntries, eventEntries } from "./parts";
 import type { TemplateProps } from "./types";
 
 /** Modern Minimalist: clean hitam-putih, sans-serif, presisi. */
@@ -108,13 +109,10 @@ export function MinimalistTemplate({ title, content, guestName, rsvpSlot, defaul
 
         <Reveal>
         <div className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-zinc-200 shadow-sm dark:bg-zinc-800">
-          {[
-            { nick: content.groomNickname || content.groomFullName, full: content.groomFullName, parents: content.groomParents, childOrder: content.groomChildOrder, instagram: content.groomInstagram },
-            { nick: content.brideNickname || content.brideFullName, full: content.brideFullName, parents: content.brideParents, childOrder: content.brideChildOrder, instagram: content.brideInstagram },
-          ].map(
-            (p, i) =>
+          {coupleEntries(content).map(
+            (p) =>
               (p.nick || p.parents || p.childOrder || instagramHref(p.instagram)) && (
-                <div key={i} className="bg-white px-4 py-6 dark:bg-black">
+                <div key={p.key} className="bg-white px-4 py-6 dark:bg-black">
                   <p className="text-lg font-semibold tracking-tight">{p.nick || "-"}</p>
                   {p.full && p.full !== p.nick && (
                     <p className="mt-0.5 text-xs text-zinc-500">{p.full}</p>
@@ -168,16 +166,11 @@ export function MinimalistTemplate({ title, content, guestName, rsvpSlot, defaul
         </div>
         </Reveal>
 
-        {[
-          { no: "01", name: "Akad", date: content.akadDate, time: content.akadTime, timezone: content.akadTimezone, venue: content.akadVenue, maps: content.akadMapsUrl },
-          { no: "02", name: "Resepsi", date: content.receptionDate, time: content.receptionTime, timezone: content.receptionTimezone, venue: content.receptionVenue, maps: content.receptionMapsUrl },
-        ]
-          .filter((e) => e.date || e.time || e.venue)
-          .map((e) => (
-            <Reveal key={e.name}>
+        {eventEntries(content, "Akad", "Resepsi").map((e, i) => (
+            <Reveal key={e.key}>
             <div className={`mt-10 rounded-2xl border p-6 ${card}`}>
               <p className="text-[11px] font-medium tracking-[0.3em] uppercase text-zinc-400">
-                {e.no} — {e.name}
+                {String(i + 1).padStart(2, "0")} — {e.name}
               </p>
               <p className="mt-2 text-xl font-semibold tracking-tight">{formatDateLong(e.date)}</p>
               {e.time && <p className="text-sm text-zinc-500">{e.time} {e.timezone}</p>}

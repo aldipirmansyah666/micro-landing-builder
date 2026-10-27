@@ -1,3 +1,11 @@
+import {
+  eventTimestampForEvent,
+  migrateLegacyEvents,
+  primaryEvent,
+  type WeddingEventEntry,
+} from "./invitation-events";
+
+export type { WeddingEventEntry };
 export type GiftAccountKind = "bank" | "ewallet";
 export type CoupleOrder = "brideFirst" | "groomFirst";
 export type WeddingTimezone = "WIB" | "WITA" | "WIT";
@@ -14,6 +22,8 @@ export interface GiftAccount {
 export interface StoryEntry {
   title: string;
   text: string;
+  /** Label tanggal/tahun (opsional), contoh: "2019" atau "12 Feb 2020". */
+  dateLabel?: string;
 }
 
 /** Batas validasi Content Enhancement v1 — dipakai client & server. */
@@ -91,6 +101,14 @@ export type InvitationContent = {
   liveStreamUrl: string;
   igFilterUrl: string;
   musicRequestUrl: string;
+  /**
+   * Daftar acara dinamis (Akad, Resepsi, dan acara tambahan lain).
+   * Dihasilkan otomatis oleh `toInvitationContent()` dari field legacy
+   * `akad*`/`reception*` ATAU dari array `events` yang sudah tersimpan.
+   * Template lama yang belum membaca field ini akan mengabaikannya
+   * tanpa error (opsional, backward-compatible).
+   */
+  events?: WeddingEventEntry[];
   /**
    * Sapaan pembuka kustom. `undefined` = data lama → pakai salam bawaan
    * template; string kosong = pengguna sengaja menyembunyikan salam.
@@ -257,6 +275,7 @@ export const EMPTY_INVITATION: InvitationContent = {
   liveStreamUrl: "",
   igFilterUrl: "",
   musicRequestUrl: "",
+  events: [],
   greeting: undefined,
   closingNote: undefined,
   stories: undefined,
@@ -330,7 +349,11 @@ function toStories(v: unknown): StoryEntry[] | undefined {
       (e): e is Record<string, unknown> =>
         !!e && typeof e === "object" && !Array.isArray(e)
     )
-    .map((e) => ({ title: str(e.title), text: str(e.text) }))
+    .map((e) => ({
+      title: str(e.title),
+      text: str(e.text),
+      dateLabel: str(e.dateLabel) || undefined,
+    }))
     .filter((e) => e.title || e.text);
   return entries.length > 0 ? entries : undefined;
 }
@@ -445,6 +468,7 @@ export function toInvitationContent(raw: unknown): InvitationContent {
     liveStreamUrl: safeHttpUrl(c.liveStreamUrl),
     igFilterUrl: safeHttpUrl(c.igFilterUrl),
     musicRequestUrl: safeHttpUrl(c.musicRequestUrl),
+    events: migrateLegacyEvents(c),
     greeting: optStr(c.greeting),
     closingNote: optStr(c.closingNote),
     stories: toStories(c.stories),
@@ -533,6 +557,15 @@ export function safeExternalUrl(value: unknown): string {
 
 /** Timestamp target countdown: prioritas Akad, fallback Resepsi. Null bila belum diisi. */
 export function eventTimestamp(content: InvitationContent): number | null {
+  // Utamakan array acara dinamis bila tersedia (hasil migrateLegacyEvents).
+  // Ini memungkinkan acara tambahan di luar Akad/Resepsi tetap dihitung
+  // untuk countdown tanpa mengubah kontrak lama.
+  if (content.events && content.events.length > 0) {
+    const primary = primaryEvent(content.events);
+    if (primary) return eventTimestampForEvent(primary);
+  }
+  // Fallback ke field legacy akad*/reception* (kasus content yang belum
+  // melewati toInvitationContent, atau data yang dikirim polos).
   const date = content.akadDate || content.receptionDate;
   if (!date) return null;
   const rawTime =

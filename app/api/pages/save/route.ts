@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
+import type { ZodError } from "zod";
 import {
   createLandingPage,
   getLandingPageBasicByUserAndSlug,
@@ -13,16 +14,10 @@ import { checkSaveEntitlements, hasProAccess } from "@/lib/entitlements";
 import {
   ALL_TEMPLATE_IDS,
   LEGACY_TEMPLATE_ALIASES,
-  MAX_CLOSING_NOTE_LEN,
-  MAX_GREETING_LEN,
-  MAX_STORIES,
-  MAX_STORY_TEXT_LEN,
-  MAX_STORY_TITLE_LEN,
-  MAX_GALLERY_VIDEOS,
   resolveTemplate,
-  safeHttpUrl,
   toInvitationContent,
 } from "@/lib/invitation";
+import { InvitationContentSchema } from "@/lib/validation/invitation";
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -35,25 +30,6 @@ const TEMPLATE_ALLOWLIST = new Set<string>([
 ]);
 
 const MAX_CONTENT_BYTES = 512 * 1024; // 512KB
-const MAX_GALLERY_IMAGES = 12;
-
-// Key content_json yang berisi URL/file — wajib http(s) bila diisi,
-// untuk mencegah stored javascript:/data: URL yang dieksekusi saat diklik.
-const URL_KEYS = [
-  "backsoundUrl",
-  "mapsUrl",
-  "akadMapsUrl",
-  "receptionMapsUrl",
-  "heroImage",
-  "imageUrl",
-  "coverImageUrl",
-  "groomPhoto",
-  "bridePhoto",
-  "liveStreamUrl",
-  "igFilterUrl",
-  "musicRequestUrl",
-];
-const URL_ARRAY_KEYS = ["galleryImages", "galleryUrls", "galleryVideos"];
 
 interface SaveBody {
   slug?: unknown;
@@ -67,80 +43,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * True bila URL aman dipakai di href/src (hanya http/https).
- *
- * Memakai `safeHttpUrl` dari lib/invitation — helper yang sama dengan
- * yang dipakai saat render — sehingga aturan "hanya http(s)" tidak
- * bisa berbeda antara jalur tulis dan jalur baca.
+ * Format ZodError jadi satu string pesan yang mudah dibaca manusia
+ * (bukan JSON mentah yang sulit dipahami pengguna akhir).
  */
-function isHttpUrl(value: string): boolean {
-  return safeHttpUrl(value) !== "";
-}
-
-/** Kembalikan pesan error bila ada URL berbahaya di content, null bila aman. */
-function validateContentUrls(content: Record<string, unknown>): string | null {
-
-  for (const key of URL_KEYS) {
-    const v = content[key];
-    if (typeof v === "string" && v.trim() !== "" && !isHttpUrl(v.trim())) {
-      return `Field '${key}' harus berupa URL http(s) yang valid`;
-    }
-  }
-  for (const key of URL_ARRAY_KEYS) {
-    const v = content[key];
-    if (v === undefined) continue;
-    if (
-      !Array.isArray(v) ||
-      v.some((u) => typeof u !== "string" || (u.trim() !== "" && !isHttpUrl(u.trim())))
-    ) {
-      return `Field '${key}' harus berupa array URL http(s) yang valid`;
-    }
-  }
-  const gallery = content.galleryImages ?? content.galleryUrls;
-  if (Array.isArray(gallery) && gallery.length > MAX_GALLERY_IMAGES) {
-    return `Maksimal ${MAX_GALLERY_IMAGES} foto galeri`;
-  }
-  const videos = content.galleryVideos;
-  if (Array.isArray(videos) && videos.length > MAX_GALLERY_VIDEOS) {
-    return `Maksimal ${MAX_GALLERY_VIDEOS} video galeri`;
-  }
-  return null;
-}
-
-/**
- * Batas Content Enhancement v1 (sapaan, penutup, cerita). Key absen =
- * data lama (lolos); key ada tapi melampaui batas = 400 dengan pesan jelas.
- */
-function validateContentLimits(content: Record<string, unknown>): string | null {
-  const greeting = content.greeting;
-  if (greeting !== undefined && (typeof greeting !== "string" || greeting.length > MAX_GREETING_LEN)) {
-    return `Sapaan pembuka maksimal ${MAX_GREETING_LEN} karakter`;
-  }
-  const closingNote = content.closingNote;
-  if (closingNote !== undefined && (typeof closingNote !== "string" || closingNote.length > MAX_CLOSING_NOTE_LEN)) {
-    return `Pesan penutup maksimal ${MAX_CLOSING_NOTE_LEN} karakter`;
-  }
-  const stories = content.stories;
-  if (stories === undefined) return null;
-  if (!Array.isArray(stories)) return "Cerita harus berupa daftar";
-  if (stories.length > MAX_STORIES) return `Maksimal ${MAX_STORIES} cerita`;
-  for (let i = 0; i < stories.length; i++) {
-    const e = stories[i];
-    if (!e || typeof e !== "object" || Array.isArray(e)) {
-      return `Cerita ke-${i + 1} tidak valid`;
-    }
-    const { title, text } = e as Record<string, unknown>;
-    if (typeof title !== "string" || typeof text !== "string") {
-      return `Cerita ke-${i + 1} harus punya judul dan isi teks`;
-    }
-    if (title.length > MAX_STORY_TITLE_LEN) {
-      return `Judul cerita ke-${i + 1} maksimal ${MAX_STORY_TITLE_LEN} karakter`;
-    }
-    if (text.length > MAX_STORY_TEXT_LEN) {
-      return `Isi cerita ke-${i + 1} maksimal ${MAX_STORY_TEXT_LEN} karakter`;
-    }
-  }
-  return null;
+function formatZodError(error: ZodError): string {
+  const detail = error.issues
+    .map((i) => {
+      const path = i.path.length > 0 ? i.path.map(String).join(".") : "(root)";
+      return `${path}: ${i.message}`;
+    })
+    .join("; ");
+  return `Konten tidak valid — ${detail}`;
 }
 
 export async function POST(req: Request) {
@@ -201,14 +114,35 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-  const urlError = validateContentUrls(contentJson);
-  if (urlError) {
-    return NextResponse.json({ error: urlError }, { status: 400 });
+
+  /**
+   * 1. Normalisasi dulu lewat `toInvitationContent` — choke point yang
+   *    sama dengan jalur baca (halaman publik / preview builder). Ini
+   *    memetakan key legacy (`description`→`quote`, `date`→`akadDate`,
+   *    `galleryUrls`→`galleryImages`, dst.) DAN menyANITASI seluruh URL
+   *    via `safeHttpUrl()` (hanya http/https; `javascript:`/`data:` dibuang).
+   *
+   * 2. Baru divalidasi strukturnya dengan `InvitationContentSchema.safeParse`
+   *    — format tanggal/jam, enum zona waktu, batas array, panjang string,
+   *    dan format nomor rekening semuanya diperiksa di satu tempat.
+   *
+   * Karena sanitasi URL sudah terjadi di langkah 1, URL berbahaya tidak
+   * pernah mencapai storage — ia dikosongkan lebih dulu, bukan disimpan.
+   * Ini defense-in-depth: bahkan bila validasi Zod dilewati di masa
+   * depan, jalur baca (`toInvitationContent`) tetap menyaring.
+   */
+  const normalized = toInvitationContent(contentJson);
+  const parsed = InvitationContentSchema.safeParse(normalized);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: formatZodError(parsed.error) },
+      { status: 400 }
+    );
   }
-  const contentError = validateContentLimits(contentJson);
-  if (contentError) {
-    return NextResponse.json({ error: contentError }, { status: 400 });
-  }
+  // Hanya objek yang sudah lolos Zod yang boleh disentuh penyimpanan.
+  // `parsed.data` dijamin lengkap (field opsional terisi default) dan
+  // bebas key asing (z.object membuang key yang tidak dideklarasikan).
+  const validated = parsed.data;
 
   // Pastikan baris user ada (FK landing_pages.user_id -> users.clerk_id)
   const user = await currentUser();
@@ -233,39 +167,15 @@ export async function POST(req: Request) {
     isAdmin: role === "admin",
     email,
   });
-  /**
-   * Dokumen kanonik hasil normalisasi.
-   *
-   * Dipakai DUA hal sekaligus:
-   * 1. Validasi entitlement (gallery, backsound, sapaan/cerita).
-   * 2. YANG DISIMPAN ke `content_json`.
-   *
-   * Penting: yang disimpan adalah `normalized`, BUKAN `contentJson` mentah.
-   * Kalau payload mentah yang disimpan, key asing (mis. `foo`) dan key
-   * legacy (`description`, `galleryUrls`, `imageUrl`, …) akan menumpuk
-   * permanen di database — tidak pernah dibersihkan, dan tidak pernah
-   * divalidasi karena validasi berjalan terhadap bentuk normalisasi.
-   * Dengan menyimpan `normalized`, isi database selalu berbentuk
-   * `InvitationContent` yang valid, dan pembaca halaman publik tidak
-   * perlu migrasi manual.
-   *
-   * Konsekuensi yang disengaja: field di luar `InvitationContent`
-   * dibuang saat disimpan. Format lama tetap bermigrasi otomatis
-   * karena `toInvitationContent()` memetakan `description`→`quote`,
-   * `date`→`akadDate`/`receptionDate`, `location`→`…Venue`,
-   * `mapsUrl`→`…MapsUrl`, `imageUrl`/`coverImageUrl`→`heroImage`, dan
-   * `galleryUrls`→`galleryImages`.
-   */
-  const normalized = toInvitationContent(contentJson);
   const entitlementError = checkSaveEntitlements({
     isPro: proAccess,
     templateType,
-    galleryCount: normalized.galleryImages.length,
-    hasBacksound: normalized.backsoundUrl.trim() !== "",
+    galleryCount: validated.galleryImages.length,
+    hasBacksound: validated.backsoundUrl.trim() !== "",
     hasCustomContent:
-      normalized.greeting !== undefined ||
-      normalized.closingNote !== undefined ||
-      normalized.stories !== undefined,
+      validated.greeting !== undefined ||
+      validated.closingNote !== undefined ||
+      validated.stories !== undefined,
   });
   if (entitlementError) {
     return NextResponse.json({ error: entitlementError }, { status: 403 });
@@ -280,7 +190,7 @@ export async function POST(req: Request) {
    * itu tidak konsisten.
    *
    * Diperbaiki dengan menyelaraskan model datanya: begitu akses Pro
-   * diberikan lewat admin/bypass, `is_pro = true` ikut dipersistkan pada
+   * diberikan lewat admin/bypass, `is_pro = true` ikut dipersistikan pada
    * baris halaman tersebut. Render publik, dashboard, dan DB lalu
    * memakai satu sumber kebenaran.
    *
@@ -294,7 +204,7 @@ export async function POST(req: Request) {
     const updated = await updateLandingPage(userId, slug, {
       title,
       template_type: templateType,
-      contentJson: normalized,
+      contentJson: validated,
     });
     if (!updated) {
       return NextResponse.json(
@@ -316,7 +226,7 @@ export async function POST(req: Request) {
       title,
       slug,
       template_type: templateType,
-      content_json: normalized,
+      content_json: validated,
     });
     if (needsProPersist) {
       await setLandingPageProBySlug(slug, true);

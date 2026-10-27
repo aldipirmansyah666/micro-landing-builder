@@ -30,6 +30,7 @@ import {
   useCountdown,
   useCoverOpened,
 } from "./shared";
+import { coupleEntries, eventEntries } from "./parts";
 import type { TemplateProps } from "./types";
 
 /**
@@ -116,13 +117,10 @@ export function SageTemplate({ title, content, guestName, rsvpSlot, defaultOpene
             <h2 className="mt-2 text-4xl font-semibold italic text-[#2f3d2c]">{names}</h2>
             <OrnateDivider lineClass="bg-[#8a9b85]/50" ornament="❧" className={`mx-auto mt-4 max-w-48 ${tone}`} />
             <div className="mt-5 grid gap-3">
-              {[
-                { nick: content.groomNickname || content.groomFullName, full: content.groomFullName, parents: content.groomParents, childOrder: content.groomChildOrder, instagram: content.groomInstagram, label: "Putra dari" },
-                { nick: content.brideNickname || content.brideFullName, full: content.brideFullName, parents: content.brideParents, childOrder: content.brideChildOrder, instagram: content.brideInstagram, label: "Putri dari" },
-              ].map(
+              {coupleEntries(content).map(
                 (p) =>
                   (p.nick || p.parents || p.childOrder || instagramHref(p.instagram)) && (
-                    <div key={p.label} className={`rounded-[1.75rem] border px-5 py-6 ${card}`}>
+                    <div key={p.key} className={`rounded-[1.75rem] border px-5 py-6 ${card}`}>
                       <Flower2 className="mx-auto h-4 w-4 text-[#8a9b85]" />
                       <p className="mt-2 text-2xl font-semibold italic text-[#2f3d2c]">{p.nick || "-"}</p>
                       {p.full && p.full !== p.nick && (
@@ -195,16 +193,11 @@ export function SageTemplate({ title, content, guestName, rsvpSlot, defaultOpene
           </div>
         </Reveal>
 
-        {[
-          { name: "Akad Nikah", date: content.akadDate, time: content.akadTime, timezone: content.akadTimezone, venue: content.akadVenue, maps: content.akadMapsUrl },
-          { name: "Resepsi", date: content.receptionDate, time: content.receptionTime, timezone: content.receptionTimezone, venue: content.receptionVenue, maps: content.receptionMapsUrl },
-        ]
-          .filter((e) => e.date || e.time || e.venue)
-          .map((e) => (
-            <Reveal key={e.name}>
-              <div className={`mt-4 rounded-[1.75rem] border px-5 py-6 text-center ${card}`}>
-                <SectionHeading
-                  kicker={`🍃 ${e.name}`}
+        {eventEntries(content).map((e) => (
+              <Reveal key={e.key}>
+                <div className={`mt-4 rounded-[1.75rem] border px-5 py-6 text-center ${card}`}>
+                  <SectionHeading
+                    kicker={`🍃 ${e.name}`}
                   icon={<MapPin className="h-3.5 w-3.5" />}
                   className={tone}
                 />

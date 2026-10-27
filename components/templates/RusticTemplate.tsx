@@ -29,6 +29,7 @@ import {
   useCountdown,
   useCoverOpened,
 } from "./shared";
+import { coupleEntries, eventEntries } from "./parts";
 import type { TemplateProps } from "./types";
 
 /** Rustic Earthy: nuansa kayu/hangat, tone earthy, font casual. */
@@ -98,13 +99,10 @@ export function RusticTemplate({ title, content, guestName, rsvpSlot, defaultOpe
           <p className="mt-1 text-xs text-stone-500">~ Dua hati, satu tujuan ~</p>
           <OrnateDivider lineClass="bg-amber-900/30" ornament="🍂" className="mx-auto mt-4 max-w-44 text-amber-800" />
           <div className="mt-5 grid gap-3">
-            {[
-              { nick: content.groomNickname || content.groomFullName, full: content.groomFullName, parents: content.groomParents, childOrder: content.groomChildOrder, instagram: content.groomInstagram, label: "Putra dari" },
-              { nick: content.brideNickname || content.brideFullName, full: content.brideFullName, parents: content.brideParents, childOrder: content.brideChildOrder, instagram: content.brideInstagram, label: "Putri dari" },
-            ].map(
+            {coupleEntries(content).map(
               (p) =>
                 (p.nick || p.parents || p.childOrder || instagramHref(p.instagram)) && (
-                  <div key={p.label} className={`rounded-3xl border-2 px-5 py-5 ${card}`}>
+                  <div key={p.key} className={`rounded-3xl border-2 px-5 py-5 ${card}`}>
                     <p className="text-xl font-bold text-amber-900">{p.nick || "-"}</p>
                     {p.full && p.full !== p.nick && (
                       <p className="mt-0.5 text-sm text-stone-500">{p.full}</p>
@@ -175,13 +173,8 @@ export function RusticTemplate({ title, content, guestName, rsvpSlot, defaultOpe
         </div>
         </Reveal>
 
-        {[
-          { name: "Akad Nikah", date: content.akadDate, time: content.akadTime, timezone: content.akadTimezone, venue: content.akadVenue, maps: content.akadMapsUrl },
-          { name: "Resepsi", date: content.receptionDate, time: content.receptionTime, timezone: content.receptionTimezone, venue: content.receptionVenue, maps: content.receptionMapsUrl },
-        ]
-          .filter((e) => e.date || e.time || e.venue)
-          .map((e) => (
-            <Reveal key={e.name}>
+        {eventEntries(content).map((e) => (
+            <Reveal key={e.key}>
             <div className={`mt-4 rounded-3xl border-2 border-amber-900/20 px-5 py-6 text-center ${card}`}>
               <p className="text-base font-bold text-amber-900">🌿 {e.name}</p>
               <OrnateDivider lineClass="bg-amber-900/20" ornament="•" className="mx-auto mt-3 max-w-32 text-amber-800" />

@@ -55,6 +55,25 @@ const PAYMENT_HOSTS = [
 const CAPTCHA_HOSTS = ["challenges.cloudflare.com"];
 
 /**
+ * Embed iframe pihak ketiga yang diizinkan di halaman undangan:
+ * - Google Maps Embed (`google.com/maps/embed?pb=...` / `maps.google.com`)
+ *   dipakai tombol & preview lokasi acara.
+ * - YouTube / YouTube-nocookie dipakai pemutar musik & video undangan
+ *   (privacy-enhanced mode `youtube-nocookie.com` diprioritaskan bila
+ *   tersedia).
+ *
+ * Sengaja dibatasi host eksplisit (dengan skema https) — bukan wildcard
+ * `https:` — agar CSP tetap menjadi allowlist ketat: hanya iframe yang
+ * memang dibutuhkan tema undangan yang boleh dimuat.
+ */
+const EMBED_FRAME_HOSTS = [
+  "https://www.google.com",
+  "https://maps.google.com",
+  "https://www.youtube.com",
+  "https://www.youtube-nocookie.com",
+];
+
+/**
  * Content-Security-Policy.
  *
  * CATATAN PENTING soal `script-src 'unsafe-inline'`:
@@ -92,6 +111,7 @@ const contentSecurityPolicy = [
   `frame-src 'self' ${[
     ...PAYMENT_HOSTS,
     ...CAPTCHA_HOSTS,
+    ...EMBED_FRAME_HOSTS,
     "*.clerk.accounts.dev",
   ].join(" ")}`,
   // Cegah plugin/embed (flash, pdf, java) & base-tag hijacking.

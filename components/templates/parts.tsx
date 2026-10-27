@@ -77,35 +77,71 @@ export interface EventEntry {
   dresscode: string;
 }
 
-/** Acara yang punya isi saja — tanpa tanggal dummy. */
+/**
+ * Daftar acara untuk ditampilkan (Akad, Resepsi, dan acara tambahan).
+ *
+ * Prioritas: `content.events` (array dinamis hasil `migrateLegacyEvents`,
+ * yang juga mengisi otomatis dari field legacy `akad*`/`reception*`).
+ * Baru fallback eksplisit ke `content.akad*`/`content.reception*` bila
+ * `events` tidak tersedia (mis. konten yang belum melewati
+ * `toInvitationContent`).
+ *
+ * `akadName`/`receptionName` memungkinkan tiap template memakai label
+ * khas mereka (mis. "Akad Nikah 💍") tanpa mengubah data tersimpan.
+ * Acara non-akad/reception memakai `title` dari entri (fallback "Acara").
+ */
 export function eventEntries(
   content: InvitationContent,
   akadName = "Akad Nikah",
   receptionName = "Resepsi"
 ): EventEntry[] {
+  const fromLegacy = (
+    prefix: "akad" | "reception",
+    name: string
+  ): EventEntry => ({
+    key: prefix,
+    name,
+    date: prefix === "akad" ? content.akadDate : content.receptionDate,
+    time: prefix === "akad" ? content.akadTime : content.receptionTime,
+    timezone:
+      prefix === "akad" ? content.akadTimezone : content.receptionTimezone,
+    day: dayNameFromDate(
+      prefix === "akad" ? content.akadDate : content.receptionDate
+    ),
+    venue: prefix === "akad" ? content.akadVenue : content.receptionVenue,
+    maps: prefix === "akad" ? content.akadMapsUrl : content.receptionMapsUrl,
+    dresscode:
+      prefix === "akad" ? content.akadDresscode : content.receptionDresscode,
+  });
+
+  // Jalur 1: array dinamis (mencakup migrasi otomatis dari legacy).
+  if (content.events && content.events.length > 0) {
+    return content.events
+      .filter((e) => e.date || e.time || e.venue)
+      .map((e) => ({
+        key: e.id,
+        // Akad/Resepsi tetap memakai label template agar tampilan tidak
+        // berubah untuk data lama; acara lain memakai judul entri.
+        name:
+          e.kind === "akad"
+            ? akadName
+            : e.kind === "reception"
+              ? receptionName
+              : e.title || "Acara",
+        date: e.date,
+        time: e.time,
+        timezone: e.timezone,
+        day: e.dayLabel || dayNameFromDate(e.date),
+        venue: e.venue,
+        maps: e.mapsUrl,
+        dresscode: e.dresscode,
+      }));
+  }
+
+  // Jalur 2: fallback legacy (tanpa array events).
   return [
-    {
-      key: "akad",
-      name: akadName,
-      date: content.akadDate,
-      time: content.akadTime,
-      timezone: content.akadTimezone,
-      day: dayNameFromDate(content.akadDate),
-      venue: content.akadVenue,
-      maps: content.akadMapsUrl,
-      dresscode: content.akadDresscode,
-    },
-    {
-      key: "reception",
-      name: receptionName,
-      date: content.receptionDate,
-      time: content.receptionTime,
-      timezone: content.receptionTimezone,
-      day: dayNameFromDate(content.receptionDate),
-      venue: content.receptionVenue,
-      maps: content.receptionMapsUrl,
-      dresscode: content.receptionDresscode,
-    },
+    fromLegacy("akad", akadName),
+    fromLegacy("reception", receptionName),
   ].filter((e) => e.date || e.time || e.venue);
 }
 

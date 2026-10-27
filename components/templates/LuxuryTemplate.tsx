@@ -31,6 +31,7 @@ import {
   useCountdown,
   useCoverOpened,
 } from "./shared";
+import { coupleEntries, eventEntries } from "./parts";
 import type { TemplateProps } from "./types";
 
 /**
@@ -122,13 +123,10 @@ export function LuxuryTemplate({ title, content, guestName, rsvpSlot, defaultOpe
               className="mx-auto mt-5 max-w-52 text-amber-200"
             />
             <div className="mt-5 grid gap-3">
-              {[
-                { nick: content.groomNickname || content.groomFullName, full: content.groomFullName, parents: content.groomParents, childOrder: content.groomChildOrder, instagram: content.groomInstagram, label: "Putra dari" },
-                { nick: content.brideNickname || content.brideFullName, full: content.brideFullName, parents: content.brideParents, childOrder: content.brideChildOrder, instagram: content.brideInstagram, label: "Putri dari" },
-              ].map(
+              {coupleEntries(content).map(
                 (p) =>
                   (p.nick || p.parents || p.childOrder || instagramHref(p.instagram)) && (
-                    <div key={p.label} className={`relative rounded-3xl border p-[1px] ${"border-amber-200/30"}`}>
+                    <div key={p.key} className={`relative rounded-3xl border p-[1px] ${"border-amber-200/30"}`}>
                       <div className={`rounded-3xl px-5 py-6 ${card}`}>
                         <Gem className="mx-auto h-4 w-4 text-amber-200/70" />
                         <p className="text-shimmer-gold mt-2 text-2xl font-semibold">{p.nick || "-"}</p>
@@ -202,14 +200,9 @@ export function LuxuryTemplate({ title, content, guestName, rsvpSlot, defaultOpe
           </div>
         </Reveal>
 
-        {[
-          { name: "Akad Nikah", date: content.akadDate, time: content.akadTime, timezone: content.akadTimezone, venue: content.akadVenue, maps: content.akadMapsUrl },
-          { name: "Resepsi", date: content.receptionDate, time: content.receptionTime, timezone: content.receptionTimezone, venue: content.receptionVenue, maps: content.receptionMapsUrl },
-        ]
-          .filter((e) => e.date || e.time || e.venue)
-          .map((e) => (
-            <Reveal key={e.name}>
-              <div className={`mt-4 rounded-3xl border px-5 py-6 text-center ${card}`}>
+        {eventEntries(content).map((e) => (
+              <Reveal key={e.key}>
+                <div className={`mt-4 rounded-3xl border px-5 py-6 text-center ${card}`}>
                 <SectionHeading
                   kicker={e.name}
                   icon={<MapPin className="h-3.5 w-3.5" />}
