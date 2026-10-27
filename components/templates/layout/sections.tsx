@@ -102,8 +102,10 @@ export function CoupleSection({
   const items = entries.map((p, index) => {
           const itemClass = resolveClass(style.item, p, index, total);
           const nameClass = resolveClass(style.name, p, index, total);
-          const fullClass = resolveClass(style.full, p, index, total);
           const parentsClass = resolveClass(style.parents, p, index, total);
+          // Judul kartu = NAMA LENGKAP mempelai; nama panggilan hanya
+          // dipakai bila nama lengkap belum diisi.
+          const displayName = p.full || p.nick || "-";
           const photo = p.photo ? (
             <SafeImg
               key={p.photo}
@@ -113,10 +115,6 @@ export function CoupleSection({
               className={style.photoClass ?? "mx-auto mb-4 h-28 w-28 rounded-full object-cover"}
             />
           ) : null;
-          const labelClass = style.labelClass
-            ? resolveClass(style.labelClass, p, index, total)
-            : parentsClass;
-          const label = <p className={labelClass}>{p.label}</p>;
 
           if (style.layout === "row") {
             const instagram = instagramHref(p.instagram);
@@ -138,12 +136,7 @@ export function CoupleSection({
                     />
                   )}
                   <div>
-                    <p className={nameClass}>{p.nick || "-"}</p>
-                    {p.full && p.full !== p.nick && (
-                      <p className={style.fullInRow ? resolveClass(style.fullInRow, p, index, total) : fullClass}>
-                        {p.full}
-                      </p>
-                    )}
+                    <p className={nameClass}>{displayName}</p>
                   </div>
                 </div>
                 {family && <p className={parentsClass}>{family}</p>}
@@ -171,11 +164,7 @@ export function CoupleSection({
               <div key={p.key} className={itemClass || undefined}>
                 <div className={between?.nameWrap || undefined}>
                   {photo}
-                  {style.labelAbove && label}
-                  <p className={nameClass}>{p.nick || "-"}</p>
-                  {p.full && p.full !== p.nick && (
-                    <p className={fullClass}>{p.full}</p>
-                  )}
+                  <p className={nameClass}>{displayName}</p>
                   {instagramHref(p.instagram) && (
                     <a
                       href={instagramHref(p.instagram)}
@@ -205,11 +194,7 @@ export function CoupleSection({
                       : `0${index + 1}`}
                   </p>
                   <div className={editorial?.nameWrap}>
-                    {style.labelAbove && label}
-                    <p className={nameClass}>{p.nick || "-"}</p>
-                    {p.full && p.full !== p.nick && (
-                      <p className={fullClass}>{p.full}</p>
-                    )}
+                    <p className={nameClass}>{displayName}</p>
                     {coupleDetail(p, style, true, index, total)}
                   </div>
                 </div>
@@ -220,11 +205,7 @@ export function CoupleSection({
           return (
             <div key={p.key} className={itemClass || undefined}>
               {photo}
-              {style.labelAbove && label}
-              <p className={nameClass}>{p.nick || "-"}</p>
-              {p.full && p.full !== p.nick && (
-                <p className={fullClass}>{p.full}</p>
-              )}
+              <p className={nameClass}>{displayName}</p>
               {coupleDetail(p, style, true, index, total)}
             </div>
           );

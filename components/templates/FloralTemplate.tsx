@@ -103,10 +103,7 @@ export function FloralTemplate({ title, content, guestName, rsvpSlot, defaultOpe
               (p) =>
                 (p.nick || p.parents || p.childOrder || instagramHref(p.instagram)) && (
                   <div key={p.key} className={`rounded-[2rem] border px-5 py-5 shadow-sm shadow-rose-100 ${card}`}>
-                    <p className="text-2xl font-semibold text-rose-900 italic">{p.nick || "-"}</p>
-                    {p.full && p.full !== p.nick && (
-                      <p className="mt-0.5 text-sm text-rose-900/60">{p.full}</p>
-                    )}
+                    <p className="text-2xl font-semibold text-rose-900 italic">{p.full || p.nick || "-"}</p>
                     {coupleFamilyLine(p) && (
                       <p className="mt-2 text-xs text-rose-900/50">{coupleFamilyLine(p)}</p>
                     )}

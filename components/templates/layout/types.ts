@@ -42,13 +42,15 @@ export interface CoupleSectionStyle {
   item: StyleClass<CoupleEntry>;
   /** Class nama panggilan. */
   name: StyleClass<CoupleEntry>;
-  /** Class nama lengkap (hanya tampil bila beda dari nama panggilan). */
-  full: StyleClass<CoupleEntry>;
+  /**
+   * Class nama lengkap (hanya tampil bila beda dari nama panggilan).
+   * CATATAN: tidak lagi dirender sejak hierarki kartu mempelai — judul
+   * kartu kini memakai `name` yang berisi NAMA LENGKAP mempelai.
+   */
+  full?: StyleClass<CoupleEntry>;
   /** Class baris orang tua / anak ke- / Instagram. */
   parents: StyleClass<CoupleEntry>;
-  /** Class label mempelai ("Putra dari") bila `labelAbove` aktif. */
-  labelClass?: StyleClass<CoupleEntry>;
-  /** Class untuk nama lengkap di layout "row" (berbeda penempatannya). */
+  /** Class untuk nama lengkap di layout "row" (sudah tidak dirender, lihat `full`). */
   fullInRow?: StyleClass<CoupleEntry>;
   /** Judul opsional di atas daftar pasangan. */
   heading?: ReactNode;
@@ -56,9 +58,11 @@ export interface CoupleSectionStyle {
   photoClass?: string;
   /** Class foto pada layout row. */
   rowPhotoClass?: string;
-  /** Tampilkan label ("Putra dari"/"Putri dari") sebagai baris sendiri. */
-  labelAbove?: boolean;
-  /** Sertakan label di baris orang tua (default true). */
+  /**
+   * Sertakan label gender di baris keterangan (default true).
+   * Label gender dulu dirender terpisah di atas nama (`labelAbove`) —
+   * kini menjadi bagian frasa "Putra ke-8 dari ..." di bawah nama.
+   */
   parentsIncludeLabel?: boolean;
   /** Class tambahan untuk tautan Instagram. */
   instagramClass?: string;

@@ -113,11 +113,8 @@ export function MinimalistTemplate({ title, content, guestName, rsvpSlot, defaul
             (p) =>
               (p.nick || p.parents || p.childOrder || instagramHref(p.instagram)) && (
                 <div key={p.key} className="bg-white px-4 py-6 dark:bg-black">
-                  <p className="text-lg font-semibold tracking-tight">{p.nick || "-"}</p>
-                  {p.full && p.full !== p.nick && (
-                    <p className="mt-0.5 text-xs text-zinc-500">{p.full}</p>
-                  )}
-                  {coupleFamilyLine(p, { includeLabel: false }) && (
+                  <p className="text-lg font-semibold tracking-tight">{p.full || p.nick || "-"}</p>
+                  {coupleFamilyLine(p) && (
                     <p className="mt-2 text-xs text-zinc-500">{coupleFamilyLine(p, { includeLabel: false })}</p>
                   )}
                   {instagramHref(p.instagram) && (

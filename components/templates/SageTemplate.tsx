@@ -122,10 +122,7 @@ export function SageTemplate({ title, content, guestName, rsvpSlot, defaultOpene
                   (p.nick || p.parents || p.childOrder || instagramHref(p.instagram)) && (
                     <div key={p.key} className={`rounded-[1.75rem] border px-5 py-6 ${card}`}>
                       <Flower2 className="mx-auto h-4 w-4 text-[#8a9b85]" />
-                      <p className="mt-2 text-2xl font-semibold italic text-[#2f3d2c]">{p.nick || "-"}</p>
-                      {p.full && p.full !== p.nick && (
-                        <p className="mt-0.5 text-sm text-[#3d4a3a]/65">{p.full}</p>
-                      )}
+                      <p className="mt-2 text-2xl font-semibold italic text-[#2f3d2c]">{p.full || p.nick || "-"}</p>
                         {coupleFamilyLine(p) && (
                           <p className="mt-2 text-xs text-[#3d4a3a]/55">{coupleFamilyLine(p)}</p>
                         )}

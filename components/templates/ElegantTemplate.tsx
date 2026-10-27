@@ -103,10 +103,7 @@ export function ElegantTemplate({ title, content, guestName, rsvpSlot, defaultOp
             (p) =>
               (p.nick || p.parents || p.childOrder || instagramHref(p.instagram)) && (
                 <div key={p.key} className={`mt-4 rounded-2xl border px-5 py-5 ${card}`}>
-                  <p className="text-2xl font-semibold text-amber-100">{p.nick || "-"}</p>
-                  {p.full && p.full !== p.nick && (
-                    <p className="mt-0.5 text-sm text-amber-100/70">{p.full}</p>
-                  )}
+                  <p className="text-2xl font-semibold text-amber-100">{p.full || p.nick || "-"}</p>
                   {coupleFamilyLine(p) && (
                     <p className="mt-2 text-xs text-amber-100/60">{coupleFamilyLine(p)}</p>
                   )}

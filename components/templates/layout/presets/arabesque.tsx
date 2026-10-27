@@ -21,12 +21,9 @@ export const ARABESQUE_LAYOUT: InvitationLayoutConfig = {
     list: "mt-12 space-y-8 text-center",
     item:
       "rounded-t-full border border-[#c9a227]/50 px-6 pt-10 pb-7",
-    labelAbove: true,
-    labelClass: "text-xs tracking-[0.35em] text-[#c9a227] uppercase",
     name: "mt-2 text-4xl font-medium text-[#f7f0da]",
     full: "mt-1 font-sans text-sm text-[#c9bfa5]",
     parents: "mt-2 font-sans text-xs text-[#9a917a]",
-    parentsIncludeLabel: false,
   },
 
   story: {

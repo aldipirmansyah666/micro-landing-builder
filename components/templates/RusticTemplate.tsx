@@ -103,10 +103,7 @@ export function RusticTemplate({ title, content, guestName, rsvpSlot, defaultOpe
               (p) =>
                 (p.nick || p.parents || p.childOrder || instagramHref(p.instagram)) && (
                   <div key={p.key} className={`rounded-3xl border-2 px-5 py-5 ${card}`}>
-                    <p className="text-xl font-bold text-amber-900">{p.nick || "-"}</p>
-                    {p.full && p.full !== p.nick && (
-                      <p className="mt-0.5 text-sm text-stone-500">{p.full}</p>
-                    )}
+                    <p className="text-xl font-bold text-amber-900">{p.full || p.nick || "-"}</p>
                     {coupleFamilyLine(p) && (
                       <p className="mt-2 text-xs text-stone-500">{coupleFamilyLine(p)}</p>
                     )}

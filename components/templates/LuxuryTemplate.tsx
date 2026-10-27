@@ -129,10 +129,7 @@ export function LuxuryTemplate({ title, content, guestName, rsvpSlot, defaultOpe
                     <div key={p.key} className={`relative rounded-3xl border p-[1px] ${"border-amber-200/30"}`}>
                       <div className={`rounded-3xl px-5 py-6 ${card}`}>
                         <Gem className="mx-auto h-4 w-4 text-amber-200/70" />
-                        <p className="text-shimmer-gold mt-2 text-2xl font-semibold">{p.nick || "-"}</p>
-                        {p.full && p.full !== p.nick && (
-                          <p className="mt-0.5 text-sm text-emerald-50/70">{p.full}</p>
-                        )}
+                        <p className="text-shimmer-gold mt-2 text-2xl font-semibold">{p.full || p.nick || "-"}</p>
                           {coupleFamilyLine(p) && (
                             <p className="mt-2 text-xs text-emerald-50/55">{coupleFamilyLine(p)}</p>
                           )}

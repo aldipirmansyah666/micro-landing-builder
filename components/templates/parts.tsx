@@ -69,8 +69,8 @@ export interface CoupleFamilyOptions {
   /** Sertakan baris orang tua (bila false, hanya urutan anak yang tampil). */
   includeParents?: boolean;
   /**
-   * Sertakan label gender ("Putra dari"/"Putri dari") — hanya relevan saat
-   * baris berisi orang tua TANPA urutan anak. Default true.
+   * Sertakan label gender ("Putra"/"Putri") dalam frasa keterangan
+   * keluarga. Default true; false → frasa netral ("Anak ke-8 dari ...").
    */
   includeLabel?: boolean;
 }
@@ -79,15 +79,15 @@ export interface CoupleFamilyOptions {
  * Satu baris informasi keluarga yang digabung menjadi kalimat natural
  * (bukan lagi dua baris kaku "Anak ke-X" dan "Putra dari ..."):
  *
- * - anak + orang tua → `Anak ke-2 dari Bpk. Haryono & Ibu Sulastri`
- * - hanya anak       → `Anak ke-2`
+ * - anak + orang tua → `Putra ke-8 dari Bpk. Haryono & Ibu Sulastri`
+ * - hanya anak       → `Putra ke-8`
  * - hanya orang tua  → `Putra dari Bpk. Haryono & Ibu Sulastri`
- *                      (tanpa label bila `includeLabel` false)
+ *                      (tanpa label gender bila `includeLabel` false)
  * - keduanya kosong  → `""` (pemanggil melewati render)
  *
- * Saat anak + orang tua tersedia, frasa "dari ..." dipakai tanpa label
- * gender sehingga kalimat tetap ringkas dan tidak menduplikasi label
- * yang mungkin sudah ditampilkan terpisah oleh `labelAbove`.
+ * Label gender ("Putra"/"Putri") menjadi bagian dari frasa sehingga satu
+ * baris keterangan berdiri sendiri di bawah nama mempelai — tanpa label
+ * terpisah yang dulu dirender di atas nama.
  */
 export function coupleFamilyLine(
   entry: Pick<CoupleEntry, "childOrder" | "parents" | "label">,
@@ -96,8 +96,12 @@ export function coupleFamilyLine(
   const { includeParents = true, includeLabel = true } = options;
   const child = entry.childOrder.trim();
   const parents = includeParents ? entry.parents.trim() : "";
-  if (child && parents) return `Anak ke-${child} dari ${parents}`;
-  if (child) return `Anak ke-${child}`;
+  // "Putra dari" / "Putri dari" → "Putra" / "Putri" (kata kerja frasanya "ke-"/"dari").
+  const who = entry.label.replace(/\s+dari$/, "");
+  if (child && parents) {
+    return includeLabel ? `${who} ke-${child} dari ${parents}` : `Anak ke-${child} dari ${parents}`;
+  }
+  if (child) return includeLabel ? `${who} ke-${child}` : `Anak ke-${child}`;
   if (parents) return includeLabel ? `${entry.label} ${parents}` : parents;
   return "";
 }

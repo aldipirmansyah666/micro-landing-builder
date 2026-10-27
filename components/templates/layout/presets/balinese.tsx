@@ -19,12 +19,9 @@ export const BALINESE_LAYOUT: InvitationLayoutConfig = {
     layout: "stack",
     list: "mt-12 space-y-6 text-center",
     item: "border-y border-[#c9973f]/50 py-7",
-    labelAbove: true,
-    labelClass: "text-xs tracking-[0.35em] text-[#c9973f] uppercase",
     name: "mt-2 text-4xl font-medium text-[#f7ecc8]",
     full: "mt-1 font-sans text-sm text-[#d9c493]",
     parents: "mt-2 font-sans text-xs text-[#a8937a]",
-    parentsIncludeLabel: false,
   },
 
   story: {

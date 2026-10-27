@@ -20,13 +20,10 @@ export const CELESTIAL_LAYOUT: InvitationLayoutConfig = {
     layout: "stack",
     list: "mt-12 space-y-8 text-center",
     item: "",
-    labelAbove: true,
-    labelClass: "text-xs tracking-[0.35em] text-[#d4af37] uppercase",
     name:
       "mt-2 bg-gradient-to-b from-white to-[#c9b98a] bg-clip-text text-4xl font-medium text-transparent",
     full: "mt-1 font-sans text-sm text-[#b9b09a]",
     parents: "mt-2 font-sans text-xs text-[#8a8474]",
-    parentsIncludeLabel: false,
   },
 
   story: {

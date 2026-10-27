@@ -24,13 +24,9 @@ export const PARISIAN_LAYOUT: InvitationLayoutConfig = {
     list: "mt-4 grid grid-cols-2 gap-0 border-2 border-black",
     item: (_, index) =>
       index === 0 ? "border-r-2 border-black p-5" : "mt-10 p-5",
-    labelAbove: true,
-    labelClass:
-      "text-[10px] font-bold tracking-[0.25em] uppercase opacity-60",
     name: "mt-2 text-3xl leading-none font-black uppercase",
     full: "mt-2 text-xs opacity-70",
     parents: "mt-2 text-[11px] opacity-60",
-    parentsIncludeLabel: false,
   },
 
   story: {
