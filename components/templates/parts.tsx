@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
-import { dayNameFromDate, eventTimestamp, type InvitationContent, type StoryEntry } from "@/lib/invitation";
+import { composeParents, dayNameFromDate, eventTimestamp, type InvitationContent, type StoryEntry } from "@/lib/invitation";
 import { Reveal, useCountdown, useCoverOpened } from "./shared";
 /**
  * State bersama seluruh template katalog baru: cover, audio backsound
@@ -46,7 +46,7 @@ export function coupleEntries(content: InvitationContent): CoupleEntry[] {
     key: "groom",
     nick: content.groomNickname || content.groomFullName,
     full: content.groomFullName,
-    parents: content.groomParents,
+    parents: composeParents(content.groomFatherName, content.groomMotherName),
     childOrder: content.groomChildOrder,
     instagram: content.groomInstagram,
     photo: content.groomPhoto,
@@ -56,7 +56,7 @@ export function coupleEntries(content: InvitationContent): CoupleEntry[] {
     key: "bride",
     nick: content.brideNickname || content.brideFullName,
     full: content.brideFullName,
-    parents: content.brideParents,
+    parents: composeParents(content.brideFatherName, content.brideMotherName),
     childOrder: content.brideChildOrder,
     instagram: content.brideInstagram,
     photo: content.bridePhoto,

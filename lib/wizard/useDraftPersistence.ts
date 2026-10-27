@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toInvitationContent } from "@/lib/invitation";
 import type { WizardState } from "./wizardMachine";
 
 const DEBOUNCE_MS = 800;
@@ -69,7 +70,13 @@ export function useDraftPersistence(
           parsed.data &&
           parsed.meta
         ) {
-          onHydrateRef.current(parsed);
+          // Lewati toInvitationContent() agar draft lama (mis. field
+          // orang tua gabungan "groomParents") ikut termigrasi ke struktur
+          // terbaru — sama dengan jalur baca database.
+          onHydrateRef.current({
+            ...parsed,
+            data: toInvitationContent(parsed.data),
+          });
         }
       }
     } catch {

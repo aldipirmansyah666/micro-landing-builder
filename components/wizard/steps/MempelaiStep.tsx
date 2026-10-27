@@ -71,15 +71,29 @@ export function MempelaiStep({
             onChange={(e) => set("groomNickname", e.target.value)}
           />
         </Field>
-        <Field label="Nama Ayah & Ibu" htmlFor="groomParents">
-          <Input
-            id="groomParents"
-            value={data.groomParents}
-            maxLength={160}
-            placeholder="Bpk. ... & Ibu ..."
-            onChange={(e) => set("groomParents", e.target.value)}
-          />
-        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Nama Ayah" htmlFor="groomFatherName">
+            <Input
+              id="groomFatherName"
+              value={data.groomFatherName}
+              maxLength={80}
+              placeholder="cth: Haryono"
+              onChange={(e) => set("groomFatherName", e.target.value)}
+            />
+          </Field>
+          <Field label="Nama Ibu" htmlFor="groomMotherName">
+            <Input
+              id="groomMotherName"
+              value={data.groomMotherName}
+              maxLength={80}
+              placeholder="cth: Sulastri"
+              onChange={(e) => set("groomMotherName", e.target.value)}
+            />
+          </Field>
+        </div>
+        <p className="text-[11px] text-zinc-400">
+          Cukup ketik nama tanpa gelar — &ldquo;Bpk.&rdquo; dan &ldquo;Ibu&rdquo; ditambahkan otomatis saat dirender.
+        </p>
         <Field label="Anak Ke-" htmlFor="groomChildOrder">
           <Input
             id="groomChildOrder"
@@ -118,15 +132,29 @@ export function MempelaiStep({
             onChange={(e) => set("brideNickname", e.target.value)}
           />
         </Field>
-        <Field label="Nama Ayah & Ibu" htmlFor="brideParents">
-          <Input
-            id="brideParents"
-            value={data.brideParents}
-            maxLength={160}
-            placeholder="Bpk. ... & Ibu ..."
-            onChange={(e) => set("brideParents", e.target.value)}
-          />
-        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Nama Ayah" htmlFor="brideFatherName">
+            <Input
+              id="brideFatherName"
+              value={data.brideFatherName}
+              maxLength={80}
+              placeholder="cth: Bambang"
+              onChange={(e) => set("brideFatherName", e.target.value)}
+            />
+          </Field>
+          <Field label="Nama Ibu" htmlFor="brideMotherName">
+            <Input
+              id="brideMotherName"
+              value={data.brideMotherName}
+              maxLength={80}
+              placeholder="cth: Ratna"
+              onChange={(e) => set("brideMotherName", e.target.value)}
+            />
+          </Field>
+        </div>
+        <p className="text-[11px] text-zinc-400">
+          Cukup ketik nama tanpa gelar — &ldquo;Bpk.&rdquo; dan &ldquo;Ibu&rdquo; ditambahkan otomatis saat dirender.
+        </p>
         <Field label="Anak Ke-" htmlFor="brideChildOrder">
           <Input
             id="brideChildOrder"

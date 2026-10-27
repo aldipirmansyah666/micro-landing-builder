@@ -369,7 +369,8 @@ function ProfileFields({
   const isGroom = side === "groom";
   const fullName = isGroom ? content.groomFullName : content.brideFullName;
   const nickname = isGroom ? content.groomNickname : content.brideNickname;
-  const parents = isGroom ? content.groomParents : content.brideParents;
+  const fatherName = isGroom ? content.groomFatherName : content.brideFatherName;
+  const motherName = isGroom ? content.groomMotherName : content.brideMotherName;
   const childOrder = isGroom
     ? content.groomChildOrder
     : content.brideChildOrder;
@@ -453,21 +454,36 @@ function ProfileFields({
           />
         </Field>
       </div>
-      <Field label="Nama Orang Tua">
-        <Input
-          value={parents}
-          onChange={(e) =>
-            onChange(
-              isGroom
-                ? { groomParents: e.target.value }
-                : { brideParents: e.target.value }
-            )
-          }
-          placeholder={
-            isGroom ? "Bpk. Harto & Ibu Wulan" : "Bpk. Joko & Ibu Ratna"
-          }
-        />
-      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Nama Ayah">
+          <Input
+            value={fatherName}
+            maxLength={80}
+            onChange={(e) =>
+              onChange(
+                isGroom
+                  ? { groomFatherName: e.target.value }
+                  : { brideFatherName: e.target.value }
+              )
+            }
+            placeholder={isGroom ? "cth: Harto" : "cth: Joko"}
+          />
+        </Field>
+        <Field label="Nama Ibu">
+          <Input
+            value={motherName}
+            maxLength={80}
+            onChange={(e) =>
+              onChange(
+                isGroom
+                  ? { groomMotherName: e.target.value }
+                  : { brideMotherName: e.target.value }
+              )
+            }
+            placeholder={isGroom ? "cth: Wulan" : "cth: Ratna"}
+          />
+        </Field>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Anak ke-">
           <Input

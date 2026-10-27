@@ -70,13 +70,19 @@ export type InvitationContent = {
   coupleOrder: CoupleOrder;
   groomFullName: string;
   groomNickname: string;
-  groomParents: string;
+  /** Nama ayah mempelai pria (tanpa prefiks — lihat `composeParents`). */
+  groomFatherName: string;
+  /** Nama ibu mempelai pria (tanpa prefiks). */
+  groomMotherName: string;
   groomChildOrder: string;
   groomInstagram: string;
   groomPhoto: string;
   brideFullName: string;
   brideNickname: string;
-  brideParents: string;
+  /** Nama ayah mempelai wanita (tanpa prefiks). */
+  brideFatherName: string;
+  /** Nama ibu mempelai wanita (tanpa prefiks). */
+  brideMotherName: string;
   brideChildOrder: string;
   brideInstagram: string;
   bridePhoto: string;
@@ -244,13 +250,15 @@ export const EMPTY_INVITATION: InvitationContent = {
   coupleOrder: "brideFirst",
   groomFullName: "",
   groomNickname: "",
-  groomParents: "",
+  groomFatherName: "",
+  groomMotherName: "",
   groomChildOrder: "",
   groomInstagram: "",
   groomPhoto: "",
   brideFullName: "",
   brideNickname: "",
-  brideParents: "",
+  brideFatherName: "",
+  brideMotherName: "",
   brideChildOrder: "",
   brideInstagram: "",
   bridePhoto: "",
@@ -291,6 +299,60 @@ function str(v: unknown): string {
  */
 function optStr(v: unknown): string | undefined {
   return typeof v === "string" ? v : undefined;
+}
+
+/** Cocokkan prefiks gelar di awal nama: "Bpk."/"Bapak" (ayah) atau "Ibu". */
+const FATHER_PREFIX_RE = /^(?:bpk\.?|bapak)(?:[\s.]|$)/i;
+const MOTHER_PREFIX_RE = /^ibu(?:[\s.]|$)/i;
+
+function withParentPrefix(value: string, who: "ayah" | "ibu"): string {
+  const hasPrefix = who === "ayah" ? FATHER_PREFIX_RE.test(value) : MOTHER_PREFIX_RE.test(value);
+  if (hasPrefix) return value;
+  return who === "ayah" ? `Bpk. ${value}` : `Ibu ${value}`;
+}
+
+function stripParentPrefix(value: string, who: "ayah" | "ibu"): string {
+  const re = who === "ayah" ? /^(?:bpk\.?|bapak)[\s.]+/i : /^ibu[\s.]+/i;
+  const out = value.replace(re, "").trim();
+  // Nilai yang ternyata hanya prefiks ("Bpk.") tetap dipertahankan apa adanya.
+  return out || value;
+}
+
+/**
+ * Pecah field orang tua gabungan LAWAS (`"Bpk. Haryono & Ibu Sulastri"`)
+ * menjadi dua nama terpisah. Prefiks dibuang agar penyimpanan konsisten
+ * dengan input baru (pengguna mengetik nama saja); prefiks dikembalikan
+ * saat render oleh `composeParents()`.
+ *
+ * Tanpa "&": "Ibu ..." → dianggap ibu, selain itu → ayah.
+ */
+export function splitLegacyParents(value: string): { father: string; mother: string } {
+  const raw = value.trim();
+  if (!raw) return { father: "", mother: "" };
+  const sep = raw.indexOf("&");
+  if (sep === -1) {
+    return /^ibu[\s.]/i.test(raw)
+      ? { father: "", mother: stripParentPrefix(raw, "ibu") }
+      : { father: stripParentPrefix(raw, "ayah"), mother: "" };
+  }
+  const father = stripParentPrefix(raw.slice(0, sep).trim(), "ayah");
+  const motherRaw = raw.slice(sep + 1).trim();
+  const mother = motherRaw ? stripParentPrefix(motherRaw, "ibu") : "";
+  return { father, mother };
+}
+
+/**
+ * Susun ulang dua nama orang tua jadi satu frasa render:
+ * `"Bpk. Haryono & Ibu Sulastri"`. Prefiks tidak diduplikasi bila sudah
+ * diketik pengguna; salah satu yang kosong → hanya bagian itu yang tampil.
+ */
+export function composeParents(father: string, mother: string): string {
+  const parts: string[] = [];
+  const f = father.trim();
+  const m = mother.trim();
+  if (f) parts.push(withParentPrefix(f, "ayah"));
+  if (m) parts.push(withParentPrefix(m, "ibu"));
+  return parts.join(" & ");
 }
 
 /**
@@ -402,6 +464,14 @@ export function toInvitationContent(raw: unknown): InvitationContent {
     return { ...EMPTY_INVITATION };
   }
   const c = unwrapped as Record<string, unknown>;
+  // Migrasi field orang tua gabungan lawas → dua field terpisah.
+  // Field baru menang BILA ADA (termasuk string kosong = sengaja
+  // dikosongkan); hasil split legacy hanya dipakai saat field baru
+  // benar-benar tidak ada di data (undangan lama / draft lama).
+  const gLegacy = splitLegacyParents(str(c.groomParents));
+  const bLegacy = splitLegacyParents(str(c.brideParents));
+  const nameOr = (v: unknown, fallback: string): string =>
+    typeof v === "string" ? v : fallback;
   // Semua URL dinormalisasi lewat safeHttpUrl() — entri non-http(s)
   // (javascript:/data:/relatif) dibuang saat DATA DIPBACA, bukan hanya
   // saat disimpan. Lihat catatan di safeHttpUrl.
@@ -434,13 +504,15 @@ export function toInvitationContent(raw: unknown): InvitationContent {
     coupleOrder: normalizeCoupleOrder(c.coupleOrder),
     groomFullName: str(c.groomFullName),
     groomNickname: str(c.groomNickname),
-    groomParents: str(c.groomParents),
+    groomFatherName: nameOr(c.groomFatherName, gLegacy.father),
+    groomMotherName: nameOr(c.groomMotherName, gLegacy.mother),
     groomChildOrder: str(c.groomChildOrder),
     groomInstagram: str(c.groomInstagram),
     groomPhoto: safeHttpUrl(c.groomPhoto),
     brideFullName: str(c.brideFullName),
     brideNickname: str(c.brideNickname),
-    brideParents: str(c.brideParents),
+    brideFatherName: nameOr(c.brideFatherName, bLegacy.father),
+    brideMotherName: nameOr(c.brideMotherName, bLegacy.mother),
     brideChildOrder: str(c.brideChildOrder),
     brideInstagram: str(c.brideInstagram),
     bridePhoto: safeHttpUrl(c.bridePhoto),
